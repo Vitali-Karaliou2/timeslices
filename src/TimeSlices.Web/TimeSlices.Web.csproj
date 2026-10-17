@@ -8,6 +8,8 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <!-- Содержание коллекции читается с диска (оболочка читает манифесты) и публикуется вместе с приложением. -->
+    <None Include="Content\**\*" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
 
   <ItemGroup>

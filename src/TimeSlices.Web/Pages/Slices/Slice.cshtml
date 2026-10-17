@@ -1,0 +1,155 @@
+@page "/slices/{id}"
+@model TimeSlices.Web.Pages.Slices.SliceModel
+@{
+    var slice = Model.Slice;
+    ViewData["Title"] = slice.Title;
+    string TrackTitle(string id) => Model.Catalog.Tracks.First(t => t.Id == id).Title;
+}
+
+<h1>@slice.Title</h1>
+<p>
+    @slice.YearFrom–@slice.YearTo ·
+    треки: @string.Join(", ", slice.Tracks.Select(TrackTitle)) ·
+    <span class="state state-@Model.Status.State">@Labels.State(Model.Status)</span>
+    @if (slice.Status != "approved")
+    {
+        <span class="draft">· @Labels.SliceStatusMark(slice.Status)</span>
+    }
+</p>
+
+@if (Model.Status.State == SliceState.Unavailable)
+{
+    <p class="locked">Срез недоступен: сначала нужно пройти предшествующие срезы.</p>
+    <ul>
+        @foreach (var p in slice.Prerequisites)
+        {
+            var title = Model.Catalog.Slices[p.Slice].Title;
+            var done = Model.Statuses[p.Key].CountsAsDone;
+            <li>@title (@TrackTitle(p.Track)) — @(done ? "пройден" : "не пройден")</li>
+        }
+    </ul>
+    <p><a asp-page="/Index">К трекам</a></p>
+    return;
+}
+
+<h2>Вводимое решение</h2>
+<p>@slice.Introduces</p>
+
+<h2>Актуальность</h2>
+<p>@Labels.Relevance(slice.Relevance)</p>
+<p><strong>Зачем это, если код пишет модель:</strong> @slice.WhyNeededToReviewModelCode</p>
+
+<h2>Связь с предыдущими</h2>
+@if (slice.Prerequisites.Count > 0)
+{
+    <ul>
+        @foreach (var p in slice.Prerequisites)
+        {
+            <li>
+                <a asp-page="/Slices/Slice" asp-route-id="@p.Slice" asp-route-track="@p.Track">@Model.Catalog.Slices[p.Slice].Title</a>
+                (@TrackTitle(p.Track))@(string.IsNullOrEmpty(p.Why) ? "" : " — " + p.Why)
+            </li>
+        }
+    </ul>
+}
+<p>@slice.LinkBack</p>
+
+<h2>Дальше</h2>
+@{ var successors = Model.Catalog.SuccessorsOf(Model.Key); }
+@if (successors.Count > 0)
+{
+    <ul>
+        @foreach (var s in successors)
+        {
+            <li>@Model.Catalog.Slices[s.SliceId].Title (@TrackTitle(s.TrackId)) — @Labels.State(Model.Statuses[s])</li>
+        }
+    </ul>
+}
+<p>@slice.LinkForward</p>
+
+<h2>Примеры</h2>
+@{ var examples = Model.Catalog.ExamplesOf(slice).ToList(); }
+@if (examples.Count == 0)
+{
+    <p>Примеров пока нет.</p>
+}
+<ol>
+    @foreach (var example in examples)
+    {
+        <li>
+            <a asp-page="/Slices/Example" asp-route-id="@slice.Id" asp-route-exampleId="@example.Id" asp-route-track="@Model.Key.TrackId">@example.Title</a>
+            — @example.Task
+            <details>
+                <summary>Реализации (@example.Implementations.Count)</summary>
+                <ul>
+                    @foreach (var impl in example.Implementations)
+                    {
+                        <li>
+                            <a asp-page="/Slices/Example" asp-route-id="@slice.Id" asp-route-exampleId="@example.Id"
+                               asp-route-track="@Model.Key.TrackId" asp-route-impl="@impl.Id">@impl.Id</a>:
+                            @impl.Stack (срез: @(Model.Catalog.Slices.TryGetValue(impl.Slice, out var s) ? s.Title : impl.Slice))
+                        </li>
+                    }
+                </ul>
+            </details>
+        </li>
+    }
+</ol>
+
+@if (Model.Status.State == SliceState.Done)
+{
+    <section>
+        <h2>Повторное прохождение</h2>
+        @if (Model.HasAdvanced)
+        {
+            <p>Вы уже продвинулись дальше этого среза. Что сделать с последующими срезами?</p>
+            <div class="actions">
+                <form method="post" asp-page-handler="Repeat" asp-route-id="@slice.Id" asp-route-track="@Model.Key.TrackId">
+                    <input type="hidden" name="resetFollowing" value="true" />
+                    <button type="submit">Сбросить последующие</button>
+                </form>
+                <form method="post" asp-page-handler="Repeat" asp-route-id="@slice.Id" asp-route-track="@Model.Key.TrackId">
+                    <input type="hidden" name="resetFollowing" value="false" />
+                    <button type="submit">Не менять (пройти повторно)</button>
+                </form>
+            </div>
+        }
+        else
+        {
+            <form method="post" asp-page-handler="Repeat" asp-route-id="@slice.Id" asp-route-track="@Model.Key.TrackId">
+                <input type="hidden" name="resetFollowing" value="false" />
+                <button type="submit">Пройти повторно</button>
+            </form>
+        }
+    </section>
+}
+
+@if (Model.NextChoices is { } choices)
+{
+    <section>
+        <h2>Куда дальше</h2>
+        @if (choices.Count == 0)
+        {
+            <p>Следующих доступных срезов нет.</p>
+        }
+        else
+        {
+            <ul>
+                @foreach (var c in choices)
+                {
+                    <li><a asp-page="/Slices/Slice" asp-route-id="@c.SliceId" asp-route-track="@c.TrackId">@Model.Catalog.Slices[c.SliceId].Title</a> (@TrackTitle(c.TrackId))</li>
+                }
+            </ul>
+        }
+    </section>
+}
+
+<div class="actions">
+    @if (Model.Status.State != SliceState.Done)
+    {
+        <form method="post" asp-page-handler="Done" asp-route-id="@slice.Id" asp-route-track="@Model.Key.TrackId">
+            <button type="submit">Готово</button>
+        </form>
+    }
+    <a asp-page="/Slices/Slice" asp-page-handler="Next" asp-route-id="@slice.Id" asp-route-track="@Model.Key.TrackId">Далее</a>
+</div>

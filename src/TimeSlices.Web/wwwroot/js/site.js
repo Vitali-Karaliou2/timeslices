@@ -1,4 +1,5 @@
-﻿// Please see documentation at https://learn.microsoft.com/aspnet/core/client-side/bundling-and-minification
-// for details on configuring this project to bundle and minify static web assets.
-
-// Write your JavaScript code.
+// Немного JS оболочки, без библиотек.
+// Выпадающий список реализаций: смена значения сразу отправляет форму (без JS — кнопка «Показать»).
+document.querySelectorAll("select[data-autosubmit]").forEach(function (select) {
+    select.addEventListener("change", function () { select.form.submit(); });
+});

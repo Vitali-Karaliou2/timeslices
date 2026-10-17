@@ -1,0 +1,4 @@
+[
+  { "id": "hardware", "title": "Аппаратная основа", "order": 1, "description": "ЧЕРНОВИК: предшественник для всех треков." },
+  { "id": "frontend", "title": "Front-end", "order": 3, "description": "ЧЕРНОВИК: точка старта проекта." }
+]

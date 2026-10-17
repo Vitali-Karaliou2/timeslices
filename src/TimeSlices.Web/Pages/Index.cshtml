@@ -1,10 +1,37 @@
-﻿@page
+@page
 @model IndexModel
 @{
-    ViewData["Title"] = "Home page";
+    ViewData["Title"] = "Треки и срезы";
 }
 
-<div class="text-center">
-    <h1 class="display-4">Welcome</h1>
-    <p>Learn about <a href="https://learn.microsoft.com/aspnet/core">building Web apps with ASP.NET Core</a>.</p>
-</div>
+<h1>Треки и срезы</h1>
+
+@foreach (var track in Model.Catalog.Tracks)
+{
+    <section>
+        <h2>@track.Title</h2>
+        @if (!string.IsNullOrEmpty(track.Description))
+        {
+            <p>@track.Description</p>
+        }
+        <ol>
+            @foreach (var key in Model.Catalog.SlicesInTrack(track.Id))
+            {
+                var slice = Model.Catalog.Slices[key.SliceId];
+                var status = Model.Statuses[key];
+                <li>
+                    @if (status.State == SliceState.Unavailable)
+                    {
+                        <span class="locked">@slice.Title</span>
+                    }
+                    else
+                    {
+                        <a asp-page="/Slices/Slice" asp-route-id="@slice.Id" asp-route-track="@track.Id">@slice.Title</a>
+                    }
+                    <span>(@slice.YearFrom–@slice.YearTo)</span>
+                    <span class="state state-@status.State">@Labels.State(status)</span>
+                </li>
+            }
+        </ol>
+    </section>
+}
