@@ -7,7 +7,7 @@ using TimeSlices.Web.Progress;
 
 namespace TimeSlices.Web.Pages.Slices;
 
-public class ExampleModel(ContentCatalog catalog, SliceProgressService progress, UserManager<ApplicationUser> users) : PageModel
+public class ExampleModel(ContentCatalog catalog, SliceProgressService progress, ContentAccess access, UserManager<ApplicationUser> users) : PageModel
 {
     public ContentCatalog Catalog => catalog;
     public Slice Slice { get; private set; } = null!;
@@ -46,11 +46,10 @@ public class ExampleModel(ContentCatalog catalog, SliceProgressService progress,
         Implementation = chosen;
 
         EntryUrl = ContentUrl(Path.Combine(chosen.Directory, chosen.Entry));
-        var implDir = Path.GetFullPath(chosen.Directory) + Path.DirectorySeparatorChar;
         foreach (var file in chosen.CodeFiles)
         {
-            var full = Path.GetFullPath(Path.Combine(chosen.Directory, file.Path));
-            var lines = full.StartsWith(implDir, StringComparison.Ordinal) && System.IO.File.Exists(full)
+            var full = Path.Combine(chosen.Directory, file.Path); // что путь внутри папки реализации, проверил ContentLoader
+            var lines = System.IO.File.Exists(full)
                 ? await System.IO.File.ReadAllLinesAsync(full)
                 : ["(файл не найден)"];
             Code.Add((file, lines));
@@ -63,6 +62,7 @@ public class ExampleModel(ContentCatalog catalog, SliceProgressService progress,
         var relative = Path.GetRelativePath(catalog.Root, fullPath)
             .Split(Path.DirectorySeparatorChar)
             .Select(Uri.EscapeDataString);
-        return Url.Content("~/content/" + string.Join('/', relative));
+        var token = Uri.EscapeDataString(access.IssueToken(Example));
+        return Url.Content($"~/content/{token}/" + string.Join('/', relative));
     }
 }

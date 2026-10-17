@@ -109,6 +109,21 @@ public class SliceProgressService(ApplicationDbContext db, ContentCatalog catalo
 
     private async Task SaveAsync(string userId, ThematicSliceKey key, SliceState state, bool isRepeat)
     {
+        try
+        {
+            await UpsertAsync(userId, key, state, isRepeat);
+        }
+        catch (DbUpdateException)
+        {
+            // Двойное нажатие: параллельный запрос успел вставить ту же строку (уникальный индекс).
+            // Сбрасываем отслеживание и повторяем — теперь это обновление существующей строки.
+            db.ChangeTracker.Clear();
+            await UpsertAsync(userId, key, state, isRepeat);
+        }
+    }
+
+    private async Task UpsertAsync(string userId, ThematicSliceKey key, SliceState state, bool isRepeat)
+    {
         var row = await db.UserSliceStates.SingleOrDefaultAsync(
             s => s.UserId == userId && s.SliceId == key.SliceId && s.TrackId == key.TrackId);
         if (row is null)

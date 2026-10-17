@@ -144,4 +144,40 @@ public class ProgressTests : IDisposable
     {
         Assert.False(await _fx.Service.RepeatAsync(ProgressFixture.UserId, K("a"), resetFollowing: false));
     }
+
+    [Fact]
+    public async Task Repeat_KeepFollowingOnOneOfTwoPrerequisites_KeepsSuccessorOpen()
+    {
+        foreach (var s in new[] { "a", "b", "c" })
+            await Done(s);
+
+        await _fx.Service.RepeatAsync(ProgressFixture.UserId, K("b"), resetFollowing: false);
+
+        Assert.Equal(new(SliceState.InProgress, true), await _fx.StatusOf("b@t"));
+        Assert.Equal(SliceState.Done, (await _fx.StatusOf("c@t")).State);
+        Assert.Equal(SliceState.Available, (await _fx.StatusOf("d@t")).State);
+    }
+}
+
+/// <summary>Сброс последующих через межтрековое ребро (срез × трек, brief 5.2).</summary>
+public class CrossTrackProgressTests
+{
+    [Fact]
+    public async Task ResetFollowing_CrossesTracks()
+    {
+        using var content = new TestContent().Track("hw").Track("fe")
+            .Slice("cpu", "hw")
+            .Slice("page", "fe", "cpu@hw")
+            .Slice("ajax", "fe", "page@fe");
+        using var fx = new ProgressFixture(content.Load());
+        foreach (var k in new ThematicSliceKey[] { new("cpu", "hw"), new("page", "fe"), new("ajax", "fe") })
+            await fx.Service.MarkDoneAsync(ProgressFixture.UserId, k);
+
+        await fx.Service.RepeatAsync(ProgressFixture.UserId, new("cpu", "hw"), resetFollowing: true);
+
+        Assert.Equal(SliceState.InProgress, (await fx.StatusOf("cpu@hw")).State);
+        Assert.Equal(SliceState.Unavailable, (await fx.StatusOf("page@fe")).State);
+        Assert.Equal(SliceState.Unavailable, (await fx.StatusOf("ajax@fe")).State);
+        Assert.Single(fx.Db.UserSliceStates);
+    }
 }

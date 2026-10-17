@@ -1,3 +1,6 @@
+using Microsoft.AspNetCore.DataProtection;
+using TimeSlices.Web.Collection;
+
 namespace TimeSlices.Tests;
 
 /// <summary>Статические сборки для iframe (docs/acceptance.md, п. 6): отдаются только папки реализаций.</summary>
@@ -44,5 +47,50 @@ public class ContentServingTests : IDisposable
         var ex = Assert.Throws<TimeSlices.Web.Collection.ContentLoadException>(_content.Load);
 
         Assert.Contains(ex.Problems, p => p.Contains("'impl-2' не найден entry"));
+    }
+
+    [Theory]
+    [InlineData("\"id\":\"impl-1\"", "\"id\":\"..\"", "должен быть kebab-case")]
+    [InlineData("\"entry\":\"index.html\"", "\"entry\":\"../../manifest.json\"", "(entry) '../../manifest.json' выходит за папку")]
+    [InlineData("\"path\":\"code/index.html\"", "\"path\":\"../../../questions.json\"", "(код) '../../../questions.json' выходит за папку")]
+    public void ManifestPathsOutsideImplementationFolder_FailAtLoad(string from, string to, string expected)
+    {
+        var manifest = P("slices", "a", "examples", "ex", "manifest.json");
+        var json = File.ReadAllText(manifest);
+        var at = json.IndexOf(from, StringComparison.Ordinal);
+        File.WriteAllText(manifest, json[..at] + to + json[(at + from.Length)..]); // только первое вхождение
+
+        var ex = Assert.Throws<TimeSlices.Web.Collection.ContentLoadException>(_content.Load);
+
+        Assert.Contains(ex.Problems, p => p.Contains(expected));
+    }
+
+    [Fact]
+    public void AccessToken_OpensOnlyItsExampleAndExpires()
+    {
+        using var content = new TestContent().Track("t")
+            .Slice("a", ["t"], [], ["ex", "other"])
+            .Example("a", "ex", "impl")
+            .Example("a", "other", "impl");
+        var catalog = content.Load();
+        var clock = new ManualClock();
+        var access = new ContentAccess(new EphemeralDataProtectionProvider(), clock);
+        var file = Path.Combine(content.Root, "slices", "a", "examples", "ex", "implementations", "impl", "index.html");
+        var example = catalog.FindServableFile(file)!;
+
+        var token = access.IssueToken(example);
+
+        Assert.Equal("ex", example.Id);
+        Assert.True(access.Allows(token, example));
+        Assert.False(access.Allows(token, catalog.Examples["other"]));
+        Assert.False(access.Allows("forged", example));
+        clock.Now += ContentAccess.Lifetime + TimeSpan.FromMinutes(1);
+        Assert.False(access.Allows(token, example));
+    }
+
+    private sealed class ManualClock : TimeProvider
+    {
+        public DateTimeOffset Now { get; set; } = DateTimeOffset.UtcNow;
+        public override DateTimeOffset GetUtcNow() => Now;
     }
 }

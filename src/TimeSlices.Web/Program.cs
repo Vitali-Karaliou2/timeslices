@@ -34,6 +34,7 @@ builder.Services.Configure<WebEncoderOptions>(o => o.TextEncoderSettings = new T
 
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddScoped<SliceProgressService>();
+builder.Services.AddSingleton<ContentAccess>();
 
 var app = builder.Build();
 
@@ -68,12 +69,14 @@ app.MapRazorPages()
    .WithStaticAssets();
 
 // Статические сборки реализаций для iframe. Оболочка отдаёт файлы как есть и не знает их стек;
-// наружу — только содержимое папок implementations/<impl-id>/ (не questions.json и не манифесты).
+// наружу — только содержимое папок implementations/<impl-id>/ (не questions.json и не манифесты)
+// и только по токену, который страница примера выдаёт, проверив, что срез открыт (ContentAccess).
 var contentTypes = new FileExtensionContentTypeProvider();
-app.MapGet("/content/{**path}", (string path, ContentCatalog catalog) =>
+app.MapGet("/content/{token}/{**path}", (string token, string path, ContentCatalog catalog, ContentAccess access) =>
 {
     var full = Path.GetFullPath(Path.Combine(catalog.Root, path));
-    if (!catalog.IsServable(full))
+    var example = catalog.FindServableFile(full);
+    if (example is null || !access.Allows(token, example))
         return Results.NotFound();
     if (!contentTypes.TryGetContentType(full, out var type))
         type = "application/octet-stream";
