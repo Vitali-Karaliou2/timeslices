@@ -2,6 +2,9 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.StaticFiles;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.WebEncoders;
+using System.Text.Encodings.Web;
+using System.Text.Unicode;
 using TimeSlices.Web.Collection;
 using TimeSlices.Web.Data;
 using TimeSlices.Web.Progress;
@@ -26,6 +29,8 @@ builder.Services.AddAuthorizationBuilder()
     .SetFallbackPolicy(new AuthorizationPolicyBuilder().RequireAuthenticatedUser().Build())
     .AddPolicy("AdminOnly", p => p.RequireRole(Roles.Admin));
 builder.Services.AddRazorPages(options => options.Conventions.AuthorizeFolder("/Admin", "AdminOnly"));
+// Кириллица в разметке как есть, а не &#x...; (экранирование <, >, & и кавычек сохраняется).
+builder.Services.Configure<WebEncoderOptions>(o => o.TextEncoderSettings = new TextEncoderSettings(UnicodeRanges.All));
 
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddScoped<SliceProgressService>();
