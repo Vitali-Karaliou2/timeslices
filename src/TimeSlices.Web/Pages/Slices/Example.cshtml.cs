@@ -14,6 +14,9 @@ public class ExampleModel(ContentCatalog catalog, SliceProgressService progress,
     public string TrackId { get; private set; } = "";
     public Example Example { get; private set; } = null!;
     public Implementation Implementation { get; private set; } = null!;
+
+    /// <summary>Реализации, которые можно выбрать: их срезы открыты пользователю.</summary>
+    public List<Implementation> Implementations { get; private set; } = [];
     public SliceStatus Status { get; private set; }
 
     /// <summary>Адрес статической сборки реализации для iframe.</summary>
@@ -33,14 +36,20 @@ public class ExampleModel(ContentCatalog catalog, SliceProgressService progress,
         Slice = slice;
         TrackId = track;
         Example = catalog.Examples[exampleId];
-        Status = await progress.GetStatusAsync(users.GetUserId(User)!, new ThematicSliceKey(id, track));
+        var statuses = await progress.GetStatusesAsync(users.GetUserId(User)!);
+        Status = statuses[new ThematicSliceKey(id, track)];
         if (Status.State == SliceState.Unavailable)
             return RedirectToPage("/Slices/Slice", new { id, track });
 
-        // По умолчанию — реализация, привязанная к этому срезу; иначе первая.
+        // Реализации, привязанные к недоступным срезам («отыгранные вперёд»), не показываются.
+        Implementations = Example.Implementations
+            .Where(i => catalog.Slices[i.Slice].Tracks.Any(t => statuses[new ThematicSliceKey(i.Slice, t)].State != SliceState.Unavailable))
+            .ToList();
+
+        // По умолчанию — реализация, привязанная к этому срезу; иначе первая из открытых.
         var chosen = impl is null
-            ? Example.Implementations.FirstOrDefault(i => i.Slice == id) ?? Example.Implementations.FirstOrDefault()
-            : Example.Implementations.FirstOrDefault(i => i.Id == impl);
+            ? Implementations.FirstOrDefault(i => i.Slice == id) ?? Implementations.FirstOrDefault()
+            : Implementations.FirstOrDefault(i => i.Id == impl);
         if (chosen is null)
             return NotFound();
         Implementation = chosen;
@@ -62,7 +71,7 @@ public class ExampleModel(ContentCatalog catalog, SliceProgressService progress,
         var relative = Path.GetRelativePath(catalog.Root, fullPath)
             .Split(Path.DirectorySeparatorChar)
             .Select(Uri.EscapeDataString);
-        var token = Uri.EscapeDataString(access.IssueToken(Example));
+        var token = Uri.EscapeDataString(access.IssueToken(Example, Implementation));
         return Url.Content($"~/content/{token}/" + string.Join('/', relative));
     }
 }

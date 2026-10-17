@@ -8,7 +8,7 @@ public sealed class ContentCatalog
 {
     private readonly Dictionary<ThematicSliceKey, List<ThematicSliceKey>> _prerequisites;
     private readonly Dictionary<ThematicSliceKey, List<ThematicSliceKey>> _successors;
-    private readonly List<(string Directory, Example Example)> _implementationDirectories;
+    private readonly List<(string Directory, Example Example, Implementation Implementation)> _implementationDirectories;
 
     // Linux различает регистр в путях, Windows и macOS по умолчанию — нет.
     private static readonly StringComparison PathComparison =
@@ -41,7 +41,7 @@ public sealed class ContentCatalog
                 _successors[p].Add(key);
 
         _implementationDirectories = examples.Values
-            .SelectMany(e => e.Implementations.Select(i => (EnsureTrailingSeparator(Path.GetFullPath(i.Directory)), e)))
+            .SelectMany(e => e.Implementations.Select(i => (EnsureTrailingSeparator(Path.GetFullPath(i.Directory)), e, i)))
             .ToList();
     }
 
@@ -85,17 +85,17 @@ public sealed class ContentCatalog
         slice.Examples.Select(id => Examples[id]).OrderBy(e => e.Complexity).ThenBy(e => e.Id, StringComparer.Ordinal);
 
     /// <summary>
-    /// Пример, статической сборке которого принадлежит файл, или null. Наружу отдаётся только то,
-    /// что лежит внутри папок реализаций: questions.json с эталонными обоснованиями и манифесты — нет.
+    /// Реализация (с её примером), статической сборке которой принадлежит файл, или null. Наружу
+    /// отдаётся только то, что лежит внутри папок реализаций: questions.json и манифесты — нет.
     /// </summary>
-    public Example? FindServableFile(string fullPath)
+    public (Example Example, Implementation Implementation)? FindServableFile(string fullPath)
     {
         var path = Path.GetFullPath(fullPath);
         if (!File.Exists(path))
             return null;
-        foreach (var (dir, example) in _implementationDirectories)
+        foreach (var (dir, example, implementation) in _implementationDirectories)
             if (path.StartsWith(dir, PathComparison))
-                return example;
+                return (example, implementation);
         return null;
     }
 

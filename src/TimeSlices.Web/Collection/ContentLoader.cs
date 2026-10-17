@@ -65,6 +65,9 @@ public static class ContentLoader
 
         foreach (var slice in slices.Values)
             CheckReferences(slice, trackIds, slices, examples, problems);
+        foreach (var example in examples.Values)
+            foreach (var impl in example.Implementations.Where(i => !slices.ContainsKey(i.Slice ?? "")))
+                problems.Add($"пример '{example.Id}': срез реализации '{impl.Id}' — '{impl.Slice}' — не найден");
 
         var order = problems.Count == 0 ? TopologicalOrder(slices, problems) : [];
 
@@ -105,19 +108,18 @@ public static class ContentLoader
                     continue;
                 }
                 impl.Directory = Path.Combine(dir, "implementations", impl.Id);
-                foreach (var (what, path) in new[] { ("entry", impl.Entry) }
-                             .Concat(impl.Processes.Select(pr => ("процесс", pr.File)))
-                             .Concat(impl.CodeFiles.Select(c => ("код", c.Path))))
+                foreach (var (what, path) in new[] { ("entry", impl.Entry ?? "") }
+                             .Concat(impl.Processes.Select(pr => ("процесс", pr.File ?? "")))
+                             .Concat(impl.CodeFiles.Select(c => ("код", c.Path ?? ""))))
                     if (!ContentCatalog.IsInside(impl.Directory, Path.Combine(impl.Directory, path)))
                         problems.Add($"{Rel(root, file)}: у реализации '{impl.Id}' путь ({what}) '{path}' выходит за папку реализации");
 
-                var entry = Path.Combine(impl.Directory, impl.Entry);
-                if (string.IsNullOrEmpty(impl.Entry) || !File.Exists(entry))
+                if (string.IsNullOrEmpty(impl.Entry) || !File.Exists(Path.Combine(impl.Directory, impl.Entry)))
                     problems.Add($"{Rel(root, file)}: у реализации '{impl.Id}' не найден entry '{impl.Entry}'");
 
                 foreach (var pr in impl.Processes)
                 {
-                    var pf = Path.Combine(impl.Directory, pr.File);
+                    var pf = Path.Combine(impl.Directory, pr.File ?? "");
                     if (!ContentCatalog.IsInside(impl.Directory, pf))
                         continue;
                     if (!File.Exists(pf))

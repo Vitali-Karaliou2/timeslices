@@ -14,7 +14,7 @@
     <label>
         Реализация:
         <select name="impl" data-autosubmit>
-            @foreach (var i in Model.Example.Implementations)
+            @foreach (var i in Model.Implementations)
             {
                 var title = Model.Catalog.Slices.TryGetValue(i.Slice, out var s) ? s.Title : i.Slice;
                 <option value="@i.Id" selected="@(i.Id == impl.Id)">@i.Id — @i.Stack (@title)</option>

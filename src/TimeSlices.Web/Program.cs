@@ -70,13 +70,12 @@ app.MapRazorPages()
 
 // Статические сборки реализаций для iframe. Оболочка отдаёт файлы как есть и не знает их стек;
 // наружу — только содержимое папок implementations/<impl-id>/ (не questions.json и не манифесты)
-// и только по токену, который страница примера выдаёт, проверив, что срез открыт (ContentAccess).
+// и только по токену, который страница примера выдаёт, проверив, что срез реализации открыт (ContentAccess).
 var contentTypes = new FileExtensionContentTypeProvider();
 app.MapGet("/content/{token}/{**path}", (string token, string path, ContentCatalog catalog, ContentAccess access) =>
 {
     var full = Path.GetFullPath(Path.Combine(catalog.Root, path));
-    var example = catalog.FindServableFile(full);
-    if (example is null || !access.Allows(token, example))
+    if (catalog.FindServableFile(full) is not var (example, implementation) || !access.Allows(token, example, implementation))
         return Results.NotFound();
     if (!contentTypes.TryGetContentType(full, out var type))
         type = "application/octet-stream";

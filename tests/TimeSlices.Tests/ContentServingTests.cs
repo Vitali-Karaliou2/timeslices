@@ -66,26 +66,33 @@ public class ContentServingTests : IDisposable
     }
 
     [Fact]
-    public void AccessToken_OpensOnlyItsExampleAndExpires()
+    public void AccessToken_OpensOnlyItsImplementationAndExpires()
     {
-        using var content = new TestContent().Track("t")
-            .Slice("a", ["t"], [], ["ex", "other"])
-            .Example("a", "ex", "impl")
-            .Example("a", "other", "impl");
-        var catalog = content.Load();
+        var catalog = _content.Load();
         var clock = new ManualClock();
         var access = new ContentAccess(new EphemeralDataProtectionProvider(), clock);
-        var file = Path.Combine(content.Root, "slices", "a", "examples", "ex", "implementations", "impl", "index.html");
-        var example = catalog.FindServableFile(file)!;
+        var impl1 = catalog.FindServableFile(P("slices", "a", "examples", "ex", "implementations", "impl-1", "index.html"))!.Value;
+        var impl2 = catalog.FindServableFile(P("slices", "a", "examples", "ex", "implementations", "impl-2", "code", "index.html"))!.Value;
 
-        var token = access.IssueToken(example);
+        var token = access.IssueToken(impl1.Example, impl1.Implementation);
 
-        Assert.Equal("ex", example.Id);
-        Assert.True(access.Allows(token, example));
-        Assert.False(access.Allows(token, catalog.Examples["other"]));
-        Assert.False(access.Allows("forged", example));
+        Assert.Equal(("ex", "impl-1"), (impl1.Example.Id, impl1.Implementation.Id));
+        Assert.True(access.Allows(token, impl1.Example, impl1.Implementation));
+        Assert.False(access.Allows(token, impl2.Example, impl2.Implementation));
+        Assert.False(access.Allows("forged", impl1.Example, impl1.Implementation));
         clock.Now += ContentAccess.Lifetime + TimeSpan.FromMinutes(1);
-        Assert.False(access.Allows(token, example));
+        Assert.False(access.Allows(token, impl1.Example, impl1.Implementation));
+    }
+
+    [Fact]
+    public void ImplementationOfUnknownSlice_FailsAtLoad()
+    {
+        var manifest = P("slices", "a", "examples", "ex", "manifest.json");
+        File.WriteAllText(manifest, File.ReadAllText(manifest).Replace("\"slice\":\"a\"", "\"slice\":\"later\""));
+
+        var ex = Assert.Throws<ContentLoadException>(_content.Load);
+
+        Assert.Contains(ex.Problems, p => p.Contains("'impl-1' — 'later' — не найден"));
     }
 
     private sealed class ManualClock : TimeProvider
