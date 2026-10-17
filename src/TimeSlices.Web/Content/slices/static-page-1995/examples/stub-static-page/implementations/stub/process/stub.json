@@ -1,0 +1,11 @@
+{
+  "id": "stub",
+  "type": "execution",
+  "variant": null,
+  "startAt": null,
+  "frames": [
+    { "order": 1, "at": null, "durationNote": "", "text": "ЧЕРНОВИК: заглушка процесса, кадр 1", "stop": false },
+    { "order": 2, "at": null, "durationNote": "", "text": "ЧЕРНОВИК: заглушка процесса, стоп-кадр", "stop": true,
+      "detail": { "codeFile": "code/index.html", "lines": "1-9", "explanation": "ЧЕРНОВИК: заглушка пояснения к стоп-кадру." } }
+  ]
+}

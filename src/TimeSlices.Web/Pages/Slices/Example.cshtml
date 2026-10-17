@@ -1,0 +1,83 @@
+@page "/slices/{id}/examples/{exampleId}"
+@model TimeSlices.Web.Pages.Slices.ExampleModel
+@{
+    ViewData["Title"] = Model.Example.Title;
+    var impl = Model.Implementation;
+}
+
+<p><a asp-page="/Slices/Slice" asp-route-id="@Model.Slice.Id" asp-route-track="@Model.TrackId">← @Model.Slice.Title</a></p>
+<h1>@Model.Example.Title</h1>
+<p>@Model.Example.Task</p>
+
+<form method="get">
+    <input type="hidden" name="track" value="@Model.TrackId" />
+    <label>
+        Реализация:
+        <select name="impl" data-autosubmit>
+            @foreach (var i in Model.Implementations)
+            {
+                var title = Model.Catalog.Slices.TryGetValue(i.Slice, out var s) ? s.Title : i.Slice;
+                <option value="@i.Id" selected="@(i.Id == impl.Id)">@i.Id — @i.Stack (@title)</option>
+            }
+        </select>
+    </label>
+    <noscript><button type="submit">Показать</button></noscript>
+</form>
+
+<p>
+    Стек: @impl.Stack · код: @(impl.CodeMode == "emulated" ? "эмулируемый" : "исполняемый непосредственно")
+    @if (impl.AnachronismCheck?.By != "human")
+    {
+        <span class="draft">· проверка на анахронизмы человеком не проведена</span>
+    }
+</p>
+
+@* sandbox без allow-same-origin: пример изолирован от оболочки (cookie, DOM родителя). *@
+<iframe class="implementation" src="@Model.EntryUrl" sandbox="allow-scripts allow-forms" title="@Model.Example.Title — @impl.Id"></iframe>
+
+<h2>Код для показа</h2>
+@if (Model.Code.Count == 0)
+{
+    <p>Нет файлов кода для показа.</p>
+}
+@foreach (var (file, lines) in Model.Code)
+{
+    <h3>@file.Path</h3>
+    @if (!string.IsNullOrEmpty(file.Note))
+    {
+        <p>@file.Note</p>
+    }
+    <pre class="code">@for (var n = 0; n < lines.Length; n++)
+{<span class="line"><span class="ln">@(n + 1)</span>@lines[n]</span>}</pre>
+}
+
+<h2>Процессы</h2>
+@if (impl.Processes.Count == 0)
+{
+    <p>Процессов нет.</p>
+}
+@foreach (var pr in impl.Processes)
+{
+    <h3>@pr.Id (@(pr.Type == "creation" ? "процесс создания" : "процесс исполнения")@(pr.Process?.Variant is { } v ? ", вариант " + v : ""))</h3>
+    @if (pr.Process is { } process)
+    {
+        <ol>
+            @foreach (var frame in process.Frames.OrderBy(f => f.Order))
+            {
+                <li class="@(frame.Stop ? "frame-stop" : "")">
+                    @if (!string.IsNullOrEmpty(frame.At)) { <span>@frame.At — </span> }
+                    @frame.Text
+                    @if (!string.IsNullOrEmpty(frame.DurationNote)) { <span> (@frame.DurationNote)</span> }
+                    @if (frame.Stop)
+                    {
+                        <span>[стоп-кадр]</span>
+                        @if (frame.Detail is { } d)
+                        {
+                            <div>@d.CodeFile @d.Lines — @d.Explanation</div>
+                        }
+                    }
+                </li>
+            }
+        </ol>
+    }
+}

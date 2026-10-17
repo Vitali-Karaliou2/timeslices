@@ -1,0 +1,32 @@
+@page
+@model TimeSlices.Web.Pages.Admin.IndexModel
+@{
+    ViewData["Title"] = "Пользователи и состояния";
+}
+
+<h1>Пользователи и состояния</h1>
+<table class="states">
+    <thead>
+        <tr>
+            <th>Пользователь</th>
+            <th>Роли</th>
+            @foreach (var key in Model.Catalog.ThematicSlices)
+            {
+                <th>@key.SliceId<br /><small>@key.TrackId</small></th>
+            }
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var (user, roles, statuses) in Model.Rows)
+        {
+            <tr>
+                <td>@user.UserName</td>
+                <td>@string.Join(", ", roles)</td>
+                @foreach (var key in Model.Catalog.ThematicSlices)
+                {
+                    <td><span class="state state-@statuses[key].State">@Labels.State(statuses[key])</span></td>
+                }
+            </tr>
+        }
+    </tbody>
+</table>

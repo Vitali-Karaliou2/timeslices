@@ -9,3 +9,12 @@ An educational app where the history of software development is shown as a colle
 временны́х срезов с работающими примерами «до/после». См. `docs/brief/` и `CLAUDE.md`.
 
 Стадия 0→1. Сборка: `dotnet build`; тесты: `dotnet test`; запуск: `dotnet run --project src/TimeSlices.Web`.
+
+## Запуск для проверки (Development)
+1. .NET 10 SDK (LTS). В облачной сессии его ставит `scripts/install_dotnet.sh`
+   (запасной путь — пакет `dotnet-sdk-10.0` из Ubuntu).
+2. `dotnet test TimeSlices.sln`, затем `dotnet run --project src/TimeSlices.Web` → http://localhost:5000.
+   БД `app.db` создаётся миграциями при старте рядом с проектом (в .gitignore).
+3. Dev-пользователи (из `src/TimeSlices.Web/appsettings.Development.json`):
+   `learner@timeslices.local` / `Learner-dev-1`, `examiner@timeslices.local` / `Examiner-dev-1`,
+   `admin@timeslices.local` / `Admin-dev-1`.
