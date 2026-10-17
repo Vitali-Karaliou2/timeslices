@@ -1,2 +1,2 @@
 # timeslices
-Обучающее приложение, в котором история разработки ПО представлена как коллекция временны́х срезов, на каждом из которых — коллекция работающих примеров, показывающих решение одной задачи «до» и «после» появления нового подхода, с визуализацией и результата, и процесса; целью является тренировка способности судить о чужом коде.
+An educational app where the history of software development is shown as a collection of snapshots, each featuring a set of working examples that demonstrate the solution to a problem 'before' and 'after' a new approach appeared, with visualization of both the result and the process; the goal is to train the ability to judge other people's code.
