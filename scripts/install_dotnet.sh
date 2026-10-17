@@ -15,9 +15,21 @@ if command -v dotnet >/dev/null 2>&1; then
   echo "dotnet уже установлен: $(dotnet --version)"
 else
   echo "Устанавливаю .NET SDK (LTS) в $DOTNET_ROOT ..."
-  curl -sSL https://dot.net/v1/dotnet-install.sh -o /tmp/dotnet-install.sh || exit 0
-  bash /tmp/dotnet-install.sh --channel LTS --install-dir "$DOTNET_ROOT" || exit 0
-  echo "Установлено: $(dotnet --version)"
+  if curl -sSL https://dot.net/v1/dotnet-install.sh -o /tmp/dotnet-install.sh \
+     && bash /tmp/dotnet-install.sh --channel LTS --install-dir "$DOTNET_ROOT"; then
+    echo "Установлено: $(dotnet --version)"
+  elif command -v apt-get >/dev/null 2>&1; then
+    # Запасной путь: сетевая политика облачной среды может не пускать на builds.dotnet.microsoft.com,
+    # а архив Ubuntu доступен. dotnet-sdk-10.0 — текущий LTS; ставится в /usr/lib/dotnet.
+    echo "dotnet-install.sh не сработал; ставлю dotnet-sdk-10.0 из пакетов Ubuntu ..."
+    export DEBIAN_FRONTEND=noninteractive
+    apt-get update -qq >/dev/null 2>&1
+    apt-get install -y -qq -o Dpkg::Options::=--force-confdef -o Dpkg::Options::=--force-confold \
+      dotnet-sdk-10.0 >/dev/null 2>&1 || exit 0
+    echo "Установлено: $(dotnet --version)"
+  else
+    exit 0
+  fi
 fi
 
 # dotnet-ef нужен для миграций; ставим только если отсутствует.
