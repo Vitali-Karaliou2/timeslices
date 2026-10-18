@@ -76,8 +76,12 @@
     }
 
     // Пуск: такты со скоростью ~600 в секунду, пока машина не остановится.
+    // Во время прогона строка состояния (aria-live) не обновляется — итог объявляется один раз при остановке.
     function run() {
         running = true;
+        // «Такт» и «Пуск» на время прогона недоступны: фокус переходит на «Сброс», чтобы не потеряться.
+        if (document.activeElement === buttons.run || document.activeElement === buttons.step) buttons.reset.focus();
+        status.textContent = "Пуск…";
         var last = performance.now(), debt = 0, text = "";
         update();
         (function frame(now) {
@@ -85,8 +89,8 @@
             debt += (now - last) * SPEED / 1000;
             last = now;
             while (debt >= 1 && running) { text = tick(); debt--; }
-            show(text);
-            if (running) requestAnimationFrame(frame);
+            if (running) { update(); requestAnimationFrame(frame); }
+            else show(text);
         })(last);
     }
 
@@ -140,6 +144,7 @@
     buttons.step.addEventListener("click", function () { status.className = ""; show(tick()); });
     buttons.run.addEventListener("click", function () { status.className = ""; run(); });
     buttons.reset.addEventListener("click", function () {
+        running = false;   // сброс во время «Пуск» останавливает прогон
         load();
         cells[COUNTER].classList.remove("toggled");
         status.className = "";

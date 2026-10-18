@@ -58,6 +58,7 @@
 
         // Показать шаг i: подсветить кадр, время сюжета, объявить; на стоп-кадре — остановиться.
         function show(i) {
+            var manual = !playing; // переход кнопками «Назад» / «Вперёд», а не проигрывание
             cancelTimer();
             current = i;
             var step = steps[i];
@@ -89,6 +90,14 @@
                 text += (/[.!?…]$/.test(text) ? "" : ".") + " Конец процесса.";
             }
             if (announce) status.textContent = text;
+            // При ручном переходе фокус остаётся на «Вперёд», и aria-describedby у «Дальше» не сработает:
+            // пояснение объявляется скрытым текстом, а на экране остаётся одно — в панели стоп-кадра.
+            if (step.stop && manual && step.detail && step.detail.explanation) {
+                var hidden = document.createElement("span");
+                hidden.className = "visually-hidden";
+                hidden.textContent = " " + step.detail.explanation;
+                status.appendChild(hidden);
+            }
             updateButtons();
         }
 

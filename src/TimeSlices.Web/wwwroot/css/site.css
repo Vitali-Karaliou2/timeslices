@@ -35,3 +35,4 @@ ol.frames li.frame-current { background: #e8f0ff; outline: 1px solid #9ab; }
 .process.player-on .frame-explanation { display: none; }
 /* Значок вместо префикса «ЧЕРНОВИК:» (Collection/DraftMark). */
 .draft-badge { font-size: .75em; font-weight: normal; color: #8a5a00; border: 1px solid #d9b26a; border-radius: .25em; padding: 0 .35em; vertical-align: .1em; }
+.visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
