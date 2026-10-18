@@ -1,8 +1,10 @@
 #!/bin/bash
 # SessionStart-хук: ставит .NET SDK (LTS) в облачной сессии Claude Code, если его нет.
 # Локально (на вашей машине) ничего не делает: CLAUDE_CODE_REMOTE там не равен "true".
-# В облачной VM .NET не предустановлен (см. docs Claude Code: Installed tools), но
-# dotnet.microsoft.com, dot.net и nuget.org входят в список разрешённых доменов уровня Trusted.
+# В облачной VM .NET не предустановлен (см. docs Claude Code: Installed tools).
+# Проверено 17.10.2026: CDN Microsoft (builds.dotnet.microsoft.com) сетевая политика облака
+# не пропускает, а архив пакетов Ubuntu и nuget.org доступны. Поэтому основной путь в облаке
+# фактически — apt (запасная ветка ниже); dotnet-install.sh оставлен для других окружений.
 
 if [ "$CLAUDE_CODE_REMOTE" != "true" ]; then
   exit 0
