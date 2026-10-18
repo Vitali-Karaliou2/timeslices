@@ -80,7 +80,7 @@ app.MapGet("/content/{token}/{**path}", (string token, string path, ContentCatal
     if (!contentTypes.TryGetContentType(full, out var type))
         type = "application/octet-stream";
     // Файлы содержания хранятся в UTF-8; без charset браузер прочёл бы кириллицу в однобайтовой кодировке.
-    else if (type.StartsWith("text/", StringComparison.Ordinal) || type == "application/javascript")
+    else if (type.StartsWith("text/", StringComparison.Ordinal))
         type += "; charset=utf-8";
     return Results.File(full, type);
 }).AllowAnonymous();
