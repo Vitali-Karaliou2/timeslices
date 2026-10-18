@@ -64,6 +64,7 @@
             });
             time.textContent = step.atDisplay || "время не указано";
             gap.textContent = i > 0 && steps[i - 1].gapLabel ? steps[i - 1].gapLabel : "";
+            bar.style.transition = "none";
             bar.style.width = "0";
             hideStop();
 
@@ -91,7 +92,13 @@
         // Ждать экранную задержку шага (при выбранной скорости) и перейти к следующему кадру.
         function advanceAfterDelay() {
             cancelTimer();
-            if (current >= steps.length - 1) { playing = false; updateButtons(); return; }
+            if (current >= steps.length - 1) {
+                // «Дальше» на последнем стоп-кадре: идти некуда, процесс закончен.
+                playing = false;
+                status.textContent = "Конец процесса.";
+                updateButtons();
+                return;
+            }
             var step = steps[current];
             var delay = step.delayMs / Number(speed.value);
             if (step.gapLabel) gap.textContent = step.gapLabel + "…";

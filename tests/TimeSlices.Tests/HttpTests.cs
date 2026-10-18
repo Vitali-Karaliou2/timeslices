@@ -88,6 +88,17 @@ public class HttpTests(ShellFactory factory) : IClassFixture<ShellFactory>
     }
 
     [Fact]
+    public async Task Anonymous_LoginPage_LoadsNoValidationScriptsWithoutJQuery()
+    {
+        // Identity UI подключает jquery.validate, а jQuery в оболочке нет: скрипты падали бы с ошибкой.
+        var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+
+        var body = await client.GetStringAsync("/Identity/Account/Login");
+
+        Assert.DoesNotContain("jquery", body, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public async Task Learner_ExamplePage_HasProcessPlayerWithScheduleAndFrameList()
     {
         var client = await factory.SignedInLearnerAsync();
