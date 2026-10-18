@@ -31,3 +31,5 @@ pre.code .line-hl { background: #fff1a8; }
 .player-stop { border-left: 4px solid #c90; padding: .25rem .75rem; margin: .5rem 0; font-weight: normal; }
 ol.frames li { padding: .1rem .25rem; }
 ol.frames li.frame-current { background: #e8f0ff; outline: 1px solid #9ab; }
+/* Пока панель стоп-кадра открыта, то же пояснение в строке списка не повторяется. */
+ol.frames li.frame-current:has(> .player-stop:not([hidden])) > .frame-detail { display: none; }

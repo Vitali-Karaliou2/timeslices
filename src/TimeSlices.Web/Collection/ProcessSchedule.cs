@@ -26,6 +26,8 @@ public static class ProcessSchedule
         {
             var frame = frames[i];
             var at = ParseAt(frame.At);
+            // Промежуток считается только между соседними кадрами со временем: кадр без at «разрывает» отсчёт,
+            // и оба шага вокруг него идут с минимальной задержкой.
             TimeSpan? gap = null;
             if (i + 1 < frames.Count && at is { } from && ParseAt(frames[i + 1].At) is { } to)
                 gap = to > from ? to - from : TimeSpan.Zero;
@@ -89,8 +91,9 @@ public static class ProcessSchedule
         return new StopDetail(d.CodeFile, d.Lines, range?.From, range?.To, d.Explanation);
     }
 
+    // RoundtripKind: время с Z или смещением не переводится в часовой пояс сервера (сейчас все at — без зоны).
     private static DateTime? ParseAt(string? at) =>
-        DateTime.TryParse(at, CultureInfo.InvariantCulture, DateTimeStyles.None, out var t) ? t : null;
+        DateTime.TryParse(at, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out var t) ? t : null;
 
     // Названия месяцев заданы здесь, а не взяты из культуры ru-RU: оболочка не зависит от ICU на сервере.
     private static readonly string[] MonthsGenitive =

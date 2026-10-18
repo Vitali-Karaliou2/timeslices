@@ -51,6 +51,8 @@
         buttons.back.addEventListener("click", function () { pause(); show(Math.max(current - 1, 0)); });
         buttons.forward.addEventListener("click", function () { pause(); show(Math.min(current + 1, steps.length - 1)); });
         buttons.next.addEventListener("click", function () { playing = true; resume(); updateButtons(); });
+        // Новая скорость действует сразу: идущее ожидание начинается заново с новой задержкой.
+        speed.addEventListener("change", function () { if (playing && timer !== null) advanceAfterDelay(); });
 
         // Показать шаг i: подсветить кадр, время сюжета, объявить; на стоп-кадре — остановиться.
         function show(i) {
@@ -69,6 +71,9 @@
             hideStop();
 
             var text = "Кадр " + (i + 1) + " из " + steps.length + ". " + step.text;
+            // На скорости ×2 и ×4 обычные кадры сменяются быстрее, чем их успевает прочесть экранный диктор:
+            // объявляются только стоп-кадры и конец процесса.
+            var announce = step.stop || !playing || Number(speed.value) === 1 || i === steps.length - 1;
             if (step.stop) {
                 playing = false;
                 showStop(step);
@@ -80,7 +85,7 @@
                 playing = false;
                 text += " Конец процесса.";
             }
-            status.textContent = text;
+            if (announce) status.textContent = text;
             updateButtons();
         }
 
@@ -114,6 +119,8 @@
         function pause() {
             playing = false;
             cancelTimer();
+            // Зафиксировать полосу там, где её застала пауза (без этого она прыгнула бы в конец).
+            bar.style.width = getComputedStyle(bar).width;
             bar.style.transition = "none";
             updateButtons();
         }

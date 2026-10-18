@@ -153,6 +153,19 @@ public class HttpTests(ShellFactory factory) : IClassFixture<ShellFactory>
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
 
+    [Theory]
+    [InlineData("/content/" + FtpEntry)]
+    [InlineData("/content/forged/" + FtpEntry)]
+    public async Task Anonymous_ContentWithoutToken_IsNotFound(string url)
+    {
+        // Статика оболочки открыта без входа, а содержание примеров — по-прежнему только по токену.
+        var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+
+        var response = await client.GetAsync(url);
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
+
     private const string Directory = "slices/net-before-web-1992/examples/directory/implementations/";
 
     [Theory]
