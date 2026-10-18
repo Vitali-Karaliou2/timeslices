@@ -1,3 +1,6 @@
+using System.Text.Encodings.Web;
+using System.Text.Json;
+using System.Text.Unicode;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
@@ -24,6 +27,20 @@ public class ExampleModel(ContentCatalog catalog, SliceProgressService progress,
 
     /// <summary>Код для показа: путь, пометка и строки файла.</summary>
     public List<(CodeFile File, string[] Lines)> Code { get; } = [];
+
+    /// <summary>Расписания проигрывания процессов реализации по id процесса (ProcessSchedule).</summary>
+    public Dictionary<string, List<ProcessStep>> Schedules { get; } = [];
+
+    // Кириллица как есть; <, >, & и кавычки экранируются, поэтому JSON безопасно вставлять в <script>.
+    private static readonly JsonSerializerOptions ScheduleJsonOptions = new(JsonSerializerDefaults.Web)
+    {
+        Encoder = JavaScriptEncoder.Create(UnicodeRanges.All),
+    };
+
+    public string ScheduleJson(string processId) => JsonSerializer.Serialize(Schedules[processId], ScheduleJsonOptions);
+
+    /// <summary>Номер файла кода для показа (для якорей строк) или -1, если файла нет среди кода реализации.</summary>
+    public int CodeIndexOf(string? path) => Code.FindIndex(c => c.File.Path == path);
 
     public async Task<IActionResult> OnGetAsync(string id, string exampleId, string? track, string? impl)
     {
@@ -63,6 +80,9 @@ public class ExampleModel(ContentCatalog catalog, SliceProgressService progress,
                 : ["(файл не найден)"];
             Code.Add((file, lines));
         }
+        foreach (var pr in chosen.Processes)
+            if (pr.Process is { } process)
+                Schedules[pr.Id] = ProcessSchedule.Build(process);
         return Page();
     }
 

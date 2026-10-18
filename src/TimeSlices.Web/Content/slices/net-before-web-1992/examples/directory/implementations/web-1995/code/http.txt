@@ -1,0 +1,16 @@
+GET /staff/ HTTP/1.0
+User-Agent: Mozilla/1.1N (Windows; I; 16bit)
+Accept: */*
+Accept: image/gif
+Accept: image/x-xbitmap
+Accept: image/jpeg
+
+HTTP/1.0 200 Document follows
+Date: Sunday, 01-Oct-95 09:00:01 GMT
+Server: NCSA/1.4.2
+Content-type: text/html
+Content-length: 1928
+
+<HTML>
+<HEAD>
+<TITLE>Кафедра физики: сотрудники</TITLE>

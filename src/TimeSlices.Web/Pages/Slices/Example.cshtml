@@ -40,15 +40,17 @@
 {
     <p>Нет файлов кода для показа.</p>
 }
-@foreach (var (file, lines) in Model.Code)
+@for (var c = 0; c < Model.Code.Count; c++)
 {
-    <h3>@file.Path</h3>
+    var (file, lines) = Model.Code[c];
+    <h3 id="code-@c">@file.Path</h3>
     @if (!string.IsNullOrEmpty(file.Note))
     {
         <p>@file.Note</p>
     }
-    <pre class="code">@for (var n = 0; n < lines.Length; n++)
-{<span class="line"><span class="ln">@(n + 1)</span>@lines[n]</span>}</pre>
+    @* data-code-file: отсюда проигрыватель берёт фрагмент для стоп-кадра. *@
+    <pre class="code" data-code-file="@file.Path">@for (var n = 0; n < lines.Length; n++)
+{<span class="line" id="code-@c-L@(n + 1)"><span class="ln">@(n + 1)</span>@lines[n]</span>}</pre>
 }
 
 <h2>Процессы</h2>
@@ -58,26 +60,73 @@
 }
 @foreach (var pr in impl.Processes)
 {
+    <section class="process" data-process-player>
     <h3>@pr.Id (@(pr.Type == "creation" ? "процесс создания" : "процесс исполнения")@(pr.Process?.Variant is { } v ? ", вариант " + v : ""))</h3>
-    @if (pr.Process is { } process)
+    @if (pr.Process is not null)
     {
-        <ol>
-            @foreach (var frame in process.Frames.OrderBy(f => f.Order))
+        var steps = Model.Schedules[pr.Id];
+        @* Проигрыватель скрыт, пока его не включит process-player.js; без JS виден только список кадров. *@
+        <div class="player" hidden>
+            <div class="player-clock">
+                <span class="player-time">&nbsp;</span>
+                <span class="player-gap"></span>
+            </div>
+            <div class="player-progress"><div class="player-progress-bar"></div></div>
+            <div class="player-controls">
+                <button type="button" data-action="play">Проиграть</button>
+                <button type="button" data-action="pause" disabled>Пауза</button>
+                <button type="button" data-action="back">Назад</button>
+                <button type="button" data-action="forward">Вперёд</button>
+                <label>Скорость
+                    <select data-action="speed">
+                        <option value="1">×1</option>
+                        <option value="2">×2</option>
+                        <option value="4">×4</option>
+                    </select>
+                </label>
+            </div>
+            <p class="player-status" aria-live="polite"></p>
+            <div class="player-stop" hidden>
+                <p class="player-stop-explanation"></p>
+                <p class="player-stop-file"></p>
+                <pre class="code player-stop-code"></pre>
+                <button type="button" data-action="continue">Дальше</button>
+            </div>
+        </div>
+        <ol class="frames">
+            @foreach (var step in steps)
             {
-                <li class="@(frame.Stop ? "frame-stop" : "")">
-                    @if (!string.IsNullOrEmpty(frame.At)) { <span>@frame.At — </span> }
-                    @frame.Text
-                    @if (!string.IsNullOrEmpty(frame.DurationNote)) { <span> (@frame.DurationNote)</span> }
-                    @if (frame.Stop)
+                <li class="@(step.Stop ? "frame-stop" : "")" data-order="@step.Order">
+                    @if (step.AtDisplay is { } at) { <span class="frame-at">@at — </span> }
+                    @step.Text
+                    @if (step.DurationNote is { } note) { <span> (@note)</span> }
+                    @if (step.Stop)
                     {
                         <span>[стоп-кадр]</span>
-                        @if (frame.Detail is { } d)
+                        @if (step.Detail is { } d)
                         {
-                            <div>@d.CodeFile @d.Lines — @d.Explanation</div>
+                            var codeIndex = Model.CodeIndexOf(d.CodeFile);
+                            <div class="frame-detail">
+                                @if (codeIndex >= 0)
+                                {
+                                    <a href="#code-@codeIndex-L@(d.LineFrom ?? 1)">@d.CodeFile, строки @d.Lines</a>
+                                }
+                                else
+                                {
+                                    <span>@d.CodeFile @d.Lines</span>
+                                }
+                                — @d.Explanation
+                            </div>
                         }
                     }
                 </li>
             }
         </ol>
+        <script type="application/json" class="process-schedule">@Html.Raw(Model.ScheduleJson(pr.Id))</script>
     }
+    </section>
+}
+
+@section Scripts {
+    <script src="~/js/process-player.js" asp-append-version="true"></script>
 }
