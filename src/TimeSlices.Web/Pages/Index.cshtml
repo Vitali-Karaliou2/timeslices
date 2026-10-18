@@ -12,7 +12,7 @@
         <h2>@track.Title</h2>
         @if (!string.IsNullOrEmpty(track.Description))
         {
-            <p>@track.Description</p>
+            <p>@DraftMark.BadgeFor(track.Description)@DraftMark.Strip(track.Description)</p>
         }
         <ol>
             @foreach (var key in Model.Catalog.SlicesInTrack(track.Id))

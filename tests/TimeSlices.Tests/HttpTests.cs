@@ -118,9 +118,38 @@ public class HttpTests(ShellFactory factory) : IClassFixture<ShellFactory>
         Assert.Contains("aria-live=\"polite\"", body);
     }
 
+    [Theory]
+    [InlineData("/slices/net-before-web-1992")]
+    [InlineData("/slices/net-before-web-1992/examples/directory?impl=ftp-1992")]
+    [InlineData("/")]
+    public async Task Learner_Pages_ShowDraftBadgeInsteadOfPrefix(string url)
+    {
+        var client = await factory.SignedInLearnerAsync();
+
+        var body = await client.GetStringAsync(url);
+
+        Assert.DoesNotContain(DraftMark.Prefix, body);
+        Assert.Contains("class=\"draft-badge\"", body);
+    }
+
+    [Fact]
+    public async Task Learner_ExamplePage_StopFrameExplanation_InListOnlyForNoJs()
+    {
+        // Пояснение стоп-кадра в разметке — один раз, в списке кадров (для показа без JS); с проигрывателем
+        // его прячет класс player-on, а панель стоп-кадра берёт текст из расписания.
+        var client = await factory.SignedInLearnerAsync();
+
+        var body = await client.GetStringAsync("/slices/net-before-web-1992/examples/directory?impl=ftp-1992");
+
+        Assert.Equal(5, Regex.Matches(body, "<span class=\"frame-explanation\">").Count);
+        Assert.Contains("<p class=\"player-stop-explanation\" id=\"stop-explanation-ftp-session\"></p>", body);
+        Assert.Contains("aria-describedby=\"stop-explanation-ftp-session\"", body);
+    }
+
     // Эталон берётся из каталога, а не литералом: тексты срезов — черновики и будут меняться.
+    // На странице текст показан без префикса «ЧЕРНОВИК:» (DraftMark).
     private string IntroducesOf(string sliceId) =>
-        factory.Services.GetRequiredService<ContentCatalog>().Slices[sliceId].Introduces[..40];
+        DraftMark.Strip(factory.Services.GetRequiredService<ContentCatalog>().Slices[sliceId].Introduces)[..40];
 
     private const string FtpEntry = "slices/net-before-web-1992/examples/directory/implementations/ftp-1992/index.html";
 

@@ -38,6 +38,8 @@
         var timer = null;
 
         player.hidden = false;
+        // С проигрывателем пояснение стоп-кадра видно один раз — в панели; в списке кадров его прячет CSS.
+        section.classList.add("player-on");
         updateButtons();
 
         buttons.play.addEventListener("click", function () {
@@ -77,7 +79,8 @@
             if (step.stop) {
                 playing = false;
                 showStop(step);
-                text = "Стоп-кадр. " + text + (step.detail && step.detail.explanation ? " " + step.detail.explanation : "");
+                // Пояснение — только в панели стоп-кадра; кнопка «Дальше» ссылается на него (aria-describedby).
+                text = "Стоп-кадр " + (i + 1) + " из " + steps.length + ".";
             } else if (playing) {
                 advanceAfterDelay();
             }

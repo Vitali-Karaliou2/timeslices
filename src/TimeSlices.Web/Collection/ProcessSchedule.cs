@@ -36,8 +36,10 @@ public static class ProcessSchedule
                 Order: frame.Order,
                 At: frame.At,
                 AtDisplay: at is { } a ? FormatAt(a) : null,
-                Text: frame.Text,
-                DurationNote: string.IsNullOrEmpty(frame.DurationNote) ? null : frame.DurationNote,
+                // Префикс «ЧЕРНОВИК:» убирается из текстов кадра; вместо него у кадра один значок (DraftMark).
+                Text: DraftMark.Strip(frame.Text),
+                DurationNote: DraftMark.StripOrNull(frame.DurationNote),
+                Draft: DraftMark.AnyDraft(frame.Text, frame.DurationNote, frame.Stop ? frame.Detail?.Explanation : null),
                 Stop: frame.Stop,
                 GapSeconds: gap?.TotalSeconds,
                 // У последнего кадра нет следующего — ждать нечего.
@@ -88,7 +90,7 @@ public static class ProcessSchedule
     private static StopDetail StopDetail(FrameDetail d)
     {
         var range = ParseLines(d.Lines);
-        return new StopDetail(d.CodeFile, d.Lines, range?.From, range?.To, d.Explanation);
+        return new StopDetail(d.CodeFile, d.Lines, range?.From, range?.To, DraftMark.StripOrNull(d.Explanation));
     }
 
     // RoundtripKind: время с Z или смещением не переводится в часовой пояс сервера (сейчас все at — без зоны).
@@ -108,8 +110,9 @@ public static class ProcessSchedule
 /// <param name="GapSeconds">Реальный промежуток до следующего кадра в сюжете; null — у кадра или у следующего нет времени, либо кадр последний.</param>
 /// <param name="DelayMs">Экранная задержка до следующего кадра при скорости ×1.</param>
 /// <param name="GapLabel">«прошло 3 ч 20 мин» для промежутков длиннее минуты.</param>
+/// <param name="Draft">Хотя бы один текст кадра помечен «ЧЕРНОВИК:»; сами тексты — уже без префикса.</param>
 public sealed record ProcessStep(
-    int Order, string? At, string? AtDisplay, string Text, string? DurationNote, bool Stop,
+    int Order, string? At, string? AtDisplay, string Text, string? DurationNote, bool Draft, bool Stop,
     double? GapSeconds, int DelayMs, string? GapLabel, StopDetail? Detail);
 
 /// <summary>Что показать на стоп-кадре: пояснение и строки файла кода для показа.</summary>

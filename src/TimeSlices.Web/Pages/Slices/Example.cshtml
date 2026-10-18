@@ -7,7 +7,7 @@
 
 <p><a asp-page="/Slices/Slice" asp-route-id="@Model.Slice.Id" asp-route-track="@Model.TrackId">← @Model.Slice.Title</a></p>
 <h1>@Model.Example.Title</h1>
-<p>@Model.Example.Task</p>
+<p>@DraftMark.BadgeFor(Model.Example.Task)@DraftMark.Strip(Model.Example.Task)</p>
 
 <form method="get">
     <input type="hidden" name="track" value="@Model.TrackId" />
@@ -46,7 +46,7 @@
     <h3 id="code-@c">@file.Path</h3>
     @if (!string.IsNullOrEmpty(file.Note))
     {
-        <p>@file.Note</p>
+        <p>@DraftMark.BadgeFor(file.Note)@DraftMark.Strip(file.Note)</p>
     }
     @* data-code-file: отсюда проигрыватель берёт фрагмент для стоп-кадра. *@
     <pre class="code" data-code-file="@file.Path">@for (var n = 0; n < lines.Length; n++)
@@ -87,16 +87,17 @@
             </div>
             <p class="player-status" aria-live="polite"></p>
             <div class="player-stop" hidden>
-                <p class="player-stop-explanation"></p>
+                <p class="player-stop-explanation" id="stop-explanation-@pr.Id"></p>
                 <p class="player-stop-file"></p>
                 <pre class="code player-stop-code"></pre>
-                <button type="button" data-action="continue">Дальше</button>
+                <button type="button" data-action="continue" aria-describedby="stop-explanation-@pr.Id">Дальше</button>
             </div>
         </div>
         <ol class="frames">
             @foreach (var step in steps)
             {
                 <li class="@(step.Stop ? "frame-stop" : "")" data-order="@step.Order">
+                    @DraftMark.Badge(step.Draft)
                     @if (step.AtDisplay is { } at) { <span class="frame-at">@at — </span> }
                     @step.Text
                     @if (step.DurationNote is { } note) { <span> (@note)</span> }
@@ -115,7 +116,8 @@
                                 {
                                     <span>@d.CodeFile @d.Lines</span>
                                 }
-                                — @d.Explanation
+                                @* Пояснение в списке — только без JS: с проигрывателем оно показывается один раз, в панели стоп-кадра. *@
+                                @if (d.Explanation is { } explanation) { <span class="frame-explanation">— @explanation</span> }
                             </div>
                         }
                     }
