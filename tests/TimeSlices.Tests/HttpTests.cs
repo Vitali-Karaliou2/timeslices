@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.DependencyInjection;
+using TimeSlices.Web.Collection;
 using TimeSlices.Web.Data;
 
 namespace TimeSlices.Tests;
@@ -72,6 +73,12 @@ public class HttpTests(ShellFactory factory) : IClassFixture<ShellFactory>
         Assert.StartsWith("/Identity/Account/Login", response.Headers.Location?.PathAndQuery);
     }
 
+    // Эталон берётся из каталога, а не литералом: тексты срезов — черновики и будут меняться.
+    private string IntroducesOf(string sliceId) =>
+        factory.Services.GetRequiredService<ContentCatalog>().Slices[sliceId].Introduces[..40];
+
+    private const string StubEntry = "slices/static-page-1995/examples/stub-static-page/implementations/stub/index.html";
+
     [Fact]
     public async Task Learner_SliceWithUnfinishedPrerequisite_IsForbiddenWithoutContent()
     {
@@ -81,17 +88,16 @@ public class HttpTests(ShellFactory factory) : IClassFixture<ShellFactory>
         var locked = await client.GetAsync("/slices/forms-cgi-1995");
 
         Assert.Equal(HttpStatusCode.OK, available.StatusCode);
-        Assert.Contains("Вводимое решение", await available.Content.ReadAsStringAsync());
+        Assert.Contains(IntroducesOf("net-before-web-1992"), await available.Content.ReadAsStringAsync());
         Assert.Equal(HttpStatusCode.Forbidden, locked.StatusCode);
         var body = await locked.Content.ReadAsStringAsync();
         Assert.Contains("Срез недоступен", body);
-        Assert.DoesNotContain("Вводимое решение", body);
-        Assert.DoesNotContain("программа на сервере их обрабатывает", body); // introduces среза
+        Assert.DoesNotContain(IntroducesOf("forms-cgi-1995"), body);
     }
 
     [Theory]
-    [InlineData("/content/slices/static-page-1995/examples/stub-static-page/implementations/stub/index.html")]
-    [InlineData("/content/forged/slices/static-page-1995/examples/stub-static-page/implementations/stub/index.html")]
+    [InlineData("/content/" + StubEntry)]
+    [InlineData("/content/forged/" + StubEntry)]
     [InlineData("/content/forged/slices/static-page-1995/slice.json")]
     public async Task Content_WithoutToken_IsNotFound(string url)
     {
@@ -100,5 +106,20 @@ public class HttpTests(ShellFactory factory) : IClassFixture<ShellFactory>
         var response = await client.GetAsync(url);
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Content_WithToken_IsServed()
+    {
+        // Положительный контроль к тесту выше: маршрут жив, и 404 там — именно из-за токена.
+        var catalog = factory.Services.GetRequiredService<ContentCatalog>();
+        var (example, implementation) = catalog.FindServableFile(Path.Combine(catalog.Root, StubEntry))!.Value;
+        var token = Uri.EscapeDataString(factory.Services.GetRequiredService<ContentAccess>().IssueToken(example, implementation));
+        var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+
+        var response = await client.GetAsync($"/content/{token}/{StubEntry}");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal("text/html", response.Content.Headers.ContentType?.MediaType);
     }
 }

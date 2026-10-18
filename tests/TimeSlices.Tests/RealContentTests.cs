@@ -1,4 +1,5 @@
 using TimeSlices.Web.Collection;
+using TimeSlices.Web.Data;
 
 namespace TimeSlices.Tests;
 
@@ -33,5 +34,17 @@ public class RealContentTests
 
         Assert.Equal([new ThematicSliceKey("net-before-web-1992", "computer-networks")], prerequisites);
         Assert.DoesNotContain(prerequisites, p => p.SliceId == "cpu-cycle");
+    }
+
+    [Fact]
+    public async Task Done_OnNetBeforeWeb_OpensStaticPageAcrossTracks()
+    {
+        using var fx = new ProgressFixture(_catalog);
+        Assert.Equal(SliceState.Unavailable, (await fx.StatusOf("static-page-1995@frontend")).State);
+
+        Assert.True(await fx.Service.MarkDoneAsync(ProgressFixture.UserId, new("net-before-web-1992", "computer-networks")));
+
+        Assert.Equal(SliceState.Available, (await fx.StatusOf("static-page-1995@frontend")).State);
+        Assert.Equal(SliceState.Unavailable, (await fx.StatusOf("forms-cgi-1995@frontend")).State);
     }
 }
