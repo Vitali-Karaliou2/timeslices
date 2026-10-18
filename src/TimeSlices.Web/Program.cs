@@ -83,3 +83,6 @@ app.MapGet("/content/{token}/{**path}", (string token, string path, ContentCatal
 }).AllowAnonymous();
 
 app.Run();
+
+// Точка входа для HTTP-тестов (WebApplicationFactory<Program>).
+public partial class Program;
