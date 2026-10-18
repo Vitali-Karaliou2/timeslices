@@ -17,3 +17,17 @@ pre.code .line { display: block; }
 pre.code .ln { color: #999; user-select: none; display: inline-block; width: 3em; }
 .frame-stop { font-weight: bold; }
 table.states td, table.states th { padding: .2rem .6rem; border-bottom: 1px solid #ddd; text-align: left; }
+pre.code .line-hl { background: #fff1a8; }
+/* Проигрыватель процессов (process-player.js). */
+.process { margin-bottom: 2rem; }
+.player { border: 1px solid #ccc; padding: .75rem; margin: .5rem 0 1rem; }
+.player-clock { display: flex; gap: 1rem; align-items: baseline; flex-wrap: wrap; }
+.player-time { font-size: 1.8em; font-variant-numeric: tabular-nums; }
+.player-gap { color: #555; }
+.player-progress { height: .25rem; background: #eee; margin: .4rem 0; }
+.player-progress-bar { height: 100%; width: 0; background: #888; }
+.player-controls { display: flex; gap: .5rem; flex-wrap: wrap; align-items: center; }
+.player-status { margin: .5rem 0 0; }
+.player-stop { border-left: 4px solid #c90; padding: .25rem .75rem; margin: .5rem 0; font-weight: normal; }
+ol.frames li { padding: .1rem .25rem; }
+ol.frames li.frame-current { background: #e8f0ff; outline: 1px solid #9ab; }

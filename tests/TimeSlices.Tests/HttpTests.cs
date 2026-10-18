@@ -73,6 +73,40 @@ public class HttpTests(ShellFactory factory) : IClassFixture<ShellFactory>
         Assert.StartsWith("/Identity/Account/Login", response.Headers.Location?.PathAndQuery);
     }
 
+    [Theory]
+    [InlineData("/js/site.js")]
+    [InlineData("/js/process-player.js")]
+    [InlineData("/css/site.css")]
+    public async Task Anonymous_ShellStaticFile_IsServedWithoutLogin(string url)
+    {
+        // Сессия 03: на странице входа скрипты оболочки перенаправлялись на вход (SyntaxError в консоли).
+        var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+
+        var response = await client.GetAsync(url);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Learner_ExamplePage_HasProcessPlayerWithScheduleAndFrameList()
+    {
+        var client = await factory.SignedInLearnerAsync();
+
+        var body = await client.GetStringAsync("/slices/net-before-web-1992/examples/directory?impl=ftp-1992");
+
+        Assert.Matches("<script src=\"/js/process-player[.a-z0-9]*js\">", body);
+        var json = Regex.Match(body, "<script type=\"application/json\" class=\"process-schedule\">(.*?)</script>", RegexOptions.Singleline);
+        Assert.True(json.Success, "нет расписания процесса в странице");
+        using var schedule = System.Text.Json.JsonDocument.Parse(json.Groups[1].Value);
+        Assert.Equal(7, schedule.RootElement.GetArrayLength());
+        Assert.Equal("code/session.txt", schedule.RootElement[0].GetProperty("detail").GetProperty("codeFile").GetString());
+        // Без JS список кадров виден целиком, проигрыватель скрыт; кнопки — настоящие <button>.
+        Assert.Equal(7, Regex.Matches(body, "<li class=\"[^\"]*\" data-order=").Count);
+        Assert.Contains("<div class=\"player\" hidden>", body);
+        Assert.Contains("<button type=\"button\" data-action=\"play\">Проиграть</button>", body);
+        Assert.Contains("aria-live=\"polite\"", body);
+    }
+
     // Эталон берётся из каталога, а не литералом: тексты срезов — черновики и будут меняться.
     private string IntroducesOf(string sliceId) =>
         factory.Services.GetRequiredService<ContentCatalog>().Slices[sliceId].Introduces[..40];

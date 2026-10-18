@@ -24,7 +24,7 @@ builder.Services.AddDefaultIdentity<ApplicationUser>(options => options.SignIn.R
     .AddRoles<IdentityRole>()
     .AddEntityFrameworkStores<ApplicationDbContext>();
 
-// Всё, кроме страниц входа/регистрации и статических сборок примеров, — только после входа.
+// Всё, кроме страниц входа/регистрации, статических файлов оболочки и сборок примеров (по токену), — только после входа.
 builder.Services.AddAuthorizationBuilder()
     .SetFallbackPolicy(new AuthorizationPolicyBuilder().RequireAuthenticatedUser().Build())
     .AddPolicy("AdminOnly", p => p.RequireRole(Roles.Admin));
@@ -64,7 +64,9 @@ app.UseRouting();
 
 app.UseAuthorization();
 
-app.MapStaticAssets();
+// Статические файлы оболочки (wwwroot, в том числе скрипты страниц входа) — без входа: иначе запасная
+// политика перенаправляла бы их на вход. Содержание примеров (/content/**) — по-прежнему только по токену.
+app.MapStaticAssets().AllowAnonymous();
 app.MapRazorPages()
    .WithStaticAssets();
 
