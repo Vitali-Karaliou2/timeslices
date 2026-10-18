@@ -72,6 +72,18 @@ public class RealContentTests
     }
 
     [Fact]
+    public void Directory_WebPage_HttpTranscript_MatchesTheFileItServes()
+    {
+        // Расшифровка обмена (ADR 0007) — реконструкция, но длина в ответе должна совпадать с показанным файлом.
+        var web = _catalog.Examples["directory"].Implementations.Single(i => i.Id == "web-1995");
+        var http = File.ReadAllLines(Path.Combine(web.Directory, "code/http.txt"));
+
+        Assert.Equal("GET /staff/ HTTP/1.0", http[0]);
+        Assert.Contains("Content-type: text/html", http);
+        Assert.Contains($"Content-length: {new FileInfo(Path.Combine(web.Directory, web.Entry)).Length}", http);
+    }
+
+    [Fact]
     public void Directory_Imitations_EmbedVerbatimCopyOfCodeFile()
     {
         // Имитация в iframe не может прочесть code/*.txt (sandbox без allow-same-origin), поэтому
