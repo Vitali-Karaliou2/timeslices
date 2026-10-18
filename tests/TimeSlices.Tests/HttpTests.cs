@@ -77,7 +77,7 @@ public class HttpTests(ShellFactory factory) : IClassFixture<ShellFactory>
     private string IntroducesOf(string sliceId) =>
         factory.Services.GetRequiredService<ContentCatalog>().Slices[sliceId].Introduces[..40];
 
-    private const string StubEntry = "slices/static-page-1995/examples/stub-static-page/implementations/stub/index.html";
+    private const string FtpEntry = "slices/net-before-web-1992/examples/directory/implementations/ftp-1992/index.html";
 
     [Fact]
     public async Task Learner_SliceWithUnfinishedPrerequisite_IsForbiddenWithoutContent()
@@ -96,8 +96,8 @@ public class HttpTests(ShellFactory factory) : IClassFixture<ShellFactory>
     }
 
     [Theory]
-    [InlineData("/content/" + StubEntry)]
-    [InlineData("/content/forged/" + StubEntry)]
+    [InlineData("/content/" + FtpEntry)]
+    [InlineData("/content/forged/" + FtpEntry)]
     [InlineData("/content/forged/slices/static-page-1995/slice.json")]
     public async Task Content_WithoutToken_IsNotFound(string url)
     {
@@ -108,18 +108,27 @@ public class HttpTests(ShellFactory factory) : IClassFixture<ShellFactory>
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
 
-    [Fact]
-    public async Task Content_WithToken_IsServed()
+    private const string Directory = "slices/net-before-web-1992/examples/directory/implementations/";
+
+    [Theory]
+    [InlineData(FtpEntry, "text/html", "utf-8")]
+    [InlineData(Directory + "ftp-1992/code/session.txt", "text/plain", "utf-8")]
+    [InlineData(Directory + "ftp-1992/terminal.js", "text/javascript", "utf-8")]
+    [InlineData(Directory + "web-1995/code/dept.gif", "image/gif", null)]
+    [InlineData(Directory + "web-1995/code/chem/index.html", "text/html", "utf-8")]
+    public async Task Content_WithToken_IsServed(string path, string mediaType, string? charset)
     {
         // Положительный контроль к тесту выше: маршрут жив, и 404 там — именно из-за токена.
+        // Токен выдан на реализацию, и относительные ссылки внутри сборки (картинка, вторая страница) им пользуются.
         var catalog = factory.Services.GetRequiredService<ContentCatalog>();
-        var (example, implementation) = catalog.FindServableFile(Path.Combine(catalog.Root, StubEntry))!.Value;
+        var (example, implementation) = catalog.FindServableFile(Path.Combine(catalog.Root, path))!.Value;
         var token = Uri.EscapeDataString(factory.Services.GetRequiredService<ContentAccess>().IssueToken(example, implementation));
         var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
 
-        var response = await client.GetAsync($"/content/{token}/{StubEntry}");
+        var response = await client.GetAsync($"/content/{token}/{path}");
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        Assert.Equal("text/html", response.Content.Headers.ContentType?.MediaType);
+        Assert.Equal(mediaType, response.Content.Headers.ContentType?.MediaType);
+        Assert.Equal(charset, response.Content.Headers.ContentType?.CharSet);
     }
 }
