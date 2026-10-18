@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<!-- Средство визуализации, не код эпохи: имитация терминала для показа сеанса FTP 1992 года.
+     Показываемый код — code/session.txt; его копия ниже (id="transcript") должна совпадать с ним дословно. -->
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>Справочник: сеанс FTP, 1992</title>
+<style>
+  body { margin: 0; background: #111; color: #c8f7c8; font: 15px/1.35 monospace; }
+  #screen { margin: 0; padding: 12px 16px; white-space: pre-wrap; min-height: 22em; }
+  #screen .hit { background: #c8f7c8; color: #111; }
+  #bar { padding: 8px 16px; background: #222; color: #ddd; font: 14px sans-serif; }
+  button { font: inherit; }
+</style>
+</head>
+<body>
+<pre id="screen"></pre>
+<div id="bar">
+  <button id="next" type="button">Следующая команда</button>
+  <span id="hint">или Enter. Шаг <span id="step">0</span> из <span id="total"></span>.</span>
+</div>
+<script type="text/plain" id="transcript" data-code="code/session.txt">% ftp -d ftp.phys.example.edu
+Connected to ftp.phys.example.edu.
+220 ftp.phys.example.edu FTP server (Version 5.60) ready.
+Name (ftp.phys.example.edu:smirnov): anonymous
+---> USER anonymous
+331 Guest login ok, send e-mail address as password.
+Password:
+---> PASS XXXX
+230 Guest login ok, access restrictions apply.
+ftp> cd pub/staff
+---> CWD pub/staff
+250 CWD command successful.
+ftp> ls
+---> PORT 192,0,2,17,4,1
+200 PORT command successful.
+---> NLST
+150 Opening ASCII mode data connection for file list.
+README
+staff.txt
+226 Transfer complete.
+ftp> get staff.txt
+local: staff.txt remote: staff.txt
+---> PORT 192,0,2,17,4,2
+200 PORT command successful.
+---> RETR staff.txt
+150 Opening ASCII mode data connection for staff.txt (8192 bytes).
+226 Transfer complete.
+8192 bytes received in 2.1 seconds (3.8 Kbytes/s)
+ftp> quit
+---> QUIT
+221 Goodbye.
+% vi staff.txt
+</script>
+<script type="text/plain" id="staff">
+Кафедра физики. Список сотрудников.            Октябрь 1992.
+
+Фамилия, имя, отчество        Должность          Телефон  Комната
+----------------------------  -----------------  -------  -------
+Петров Пётр Сергеевич         заведующий         4410     301
+Иванов Иван Иванович          профессор          4417     312
+Сидорова Анна Михайловна      доцент             4421     315
+Козлов Андрей Николаевич      доцент             4423     318
+Морозова Елена Викторовна     ассистент          4425     320
+Волков Дмитрий Олегович       инженер            4430     лаб. 104
+~
+~
+"staff.txt" 12 lines
+/Иванов
+</script>
+<script src="terminal.js"></script>
+</body>
+</html>

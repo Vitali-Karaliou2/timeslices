@@ -1,0 +1,8 @@
+1О кафедре	/about	gopher.phys.example.edu	70
+1Сотрудники	/staff	gopher.phys.example.edu	70
+2Телефонный справочник		ns.phys.example.edu	105
+1Другие университеты	/	gopher.list.example.org	70
+.
+0Список сотрудников	/staff/staff.txt	gopher.phys.example.edu	70
+2Телефонный справочник		ns.phys.example.edu	105
+.
