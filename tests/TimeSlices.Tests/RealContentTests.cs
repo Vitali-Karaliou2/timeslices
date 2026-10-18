@@ -14,7 +14,7 @@ public class RealContentTests
         Assert.Equal(["hardware", "computer-networks", "frontend", "process"], _catalog.Tracks.Select(t => t.Id));
         Assert.Equal(
             ["ajax-2005", "cpu-cycle", "forms-cgi-1995", "net-before-web-1992", "punch-cards-1972",
-             "rup-vs-iterative-2001", "static-page-1995"],
+             "rup-vs-xp-2001", "static-page-1995"],
             _catalog.Slices.Keys.Order(StringComparer.Ordinal));
         Assert.All(_catalog.Slices.Values, s => Assert.Equal("draft", s.Status));
     }
