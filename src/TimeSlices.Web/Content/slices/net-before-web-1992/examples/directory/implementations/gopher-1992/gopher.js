@@ -102,14 +102,14 @@
       render();
     } else if (it.type === '2') {
       wire.textContent = 'Справочник CCSO на ' + it.host + ':' + it.port + ' — отдельная служба.';
-      view = { kind: 'ph', title: it.name, host: it.host, body: 'Введите фамилию.\n' };
+      view = { kind: 'ph', title: it.name, host: it.host, port: it.port, body: 'Введите фамилию.\n' };
       render();
     }
   }
 
   function query(name) {
     var found = ph.filter(function (p) { return name && p[0].indexOf(name) === 0; });
-    wire.textContent = 'Соединение с ' + view.host + ':105, запрос: query name=' + name +
+    wire.textContent = 'Соединение с ' + view.host + ':' + view.port + ', запрос: query name=' + name +
       '\nОтвет получен, соединение закрыто.';
     view.body = found.length === 0 ? 'Ничего не найдено.\n' : found.map(function (p) {
       return '----------------------------------------\n' +

@@ -5,7 +5,7 @@
 (function () {
   var lines = document.getElementById('transcript').textContent.replace(/^\n/, '').replace(/\n$/, '').split('\n');
   var staff = document.getElementById('staff').textContent.replace(/^\n/, '').replace(/\n$/, '');
-  var stepEnds = [3, 9, 12, 20, 28, 31, 32];   // последний шаг — вызов редактора, затем файл
+  var stepEnds = [2, 9, 12, 20, 28, 31, 32];   // последний шаг — вызов редактора, затем файл
   var screen = document.getElementById('screen');
   var step = 0;
 

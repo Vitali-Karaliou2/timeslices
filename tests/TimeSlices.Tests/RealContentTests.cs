@@ -85,7 +85,23 @@ public class RealContentTests
 
             Assert.True(block.Success, $"{impl.Id}: нет встроенной копии {code.Path}");
             Assert.Equal(File.ReadAllText(Path.Combine(impl.Directory, code.Path)), block.Groups[1].Value);
-            Assert.Contains("средство визуализации, не код эпохи", html, StringComparison.OrdinalIgnoreCase);
+            foreach (var file in Directory.GetFiles(impl.Directory, "*.js").Prepend(Path.Combine(impl.Directory, impl.Entry)))
+                Assert.Contains("средство визуализации, не код эпохи", File.ReadAllText(file), StringComparison.OrdinalIgnoreCase);
         }
+    }
+
+    [Fact]
+    public void Directory_StopFrames_PointAtExistingLinesOfCodeFiles()
+    {
+        foreach (var impl in _catalog.Examples["directory"].Implementations)
+            foreach (var frame in impl.Processes.SelectMany(p => p.Process!.Frames).Where(f => f.Stop))
+            {
+                var d = frame.Detail!;
+                Assert.Contains(impl.CodeFiles, c => c.Path == d.CodeFile);
+                var count = File.ReadAllLines(Path.Combine(impl.Directory, d.CodeFile!)).Length;
+                var range = d.Lines!.Split('-').Select(int.Parse).ToArray();
+                Assert.True(range[0] >= 1 && range[^1] >= range[0] && range[^1] <= count,
+                    $"{impl.Id}, кадр {frame.Order}: строки {d.Lines} вне 1..{count} в {d.CodeFile}");
+            }
     }
 }
