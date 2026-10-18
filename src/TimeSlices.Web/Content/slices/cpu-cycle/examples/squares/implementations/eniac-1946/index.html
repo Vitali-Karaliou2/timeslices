@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<!-- Средство визуализации, не код эпохи: схема панелей ENIAC для задачи «таблица квадратов».
+     Машина не эмулируется — показаны лист настройки и готовые результаты прогона (CLAUDE.md, ADR 0007).
+     Показываемый код — code/setup-sheet.txt; его копия ниже (id="sheet") должна совпадать с ним дословно (ADR 0006). -->
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>Таблица квадратов: ENIAC, 1946</title>
+<style>
+  body { margin: 0; padding: 8px 12px; font: 13px/1.35 system-ui, sans-serif; background: #f4f1ea; color: #222; }
+  #controls { margin: 0 0 8px; }
+  fieldset { display: inline; border: 1px solid #bba; padding: 0 8px 2px; margin: 0; }
+  #panels { display: flex; flex-wrap: wrap; gap: 6px; }
+  .panel { flex: 1 1 10.5em; background: #2b2b2b; color: #eee; border-radius: 3px; padding: 4px 6px 6px; }
+  .panel h3 { margin: 0 0 4px; font-size: 12px; color: #fc6; }
+  .panel ul { margin: 0; padding-left: 1.1em; }
+  .panel li.jack::marker { content: "◉ "; color: #8cf; }
+  .panel li.switch::marker { content: "⊙ "; color: #fc6; }
+  .panel .changed { background: #c05a00; color: #fff; }
+  .tray { margin: 6px 0 0; padding: 3px 6px; border-radius: 3px; font: 12px monospace; }
+  .tray.program { background: #dce8f8; }
+  .tray.digit { background: #e5f2dc; }
+  #sheet-view { font: 12px/1.3 monospace; background: #fff; border: 1px solid #ccb; padding: 4px 6px; margin: 8px 0; white-space: pre-wrap; }
+  #sheet-view span { display: block; }
+  #sheet-view .changed { background: #ffd9a8; }
+  #cards { display: flex; flex-wrap: wrap; gap: 3px; font: 11px monospace; }
+  #cards span { background: #f7efd2; border: 1px solid #c9b98a; padding: 1px 4px; }
+  #summary { margin: 4px 0; }
+  .legend { color: #555; font-size: 12px; }
+</style>
+</head>
+<body>
+<div id="controls">
+  <fieldset><legend>Таблица</legend>
+    <label><input type="radio" name="n" value="10" checked> 10 квадратов</label>
+    <label><input type="radio" name="n" value="100"> 100 квадратов</label>
+  </fieldset>
+  <span id="summary" aria-live="polite"></span>
+</div>
+<p class="legend">◉ — гнездо, куда вставлен кабель программной линии; ⊙ — переключатель. Цветом — то, что меняется для 100 квадратов.</p>
+<div id="panels">
+  <div class="panel"><h3>Инициирующий блок</h3><ul>
+    <li class="jack">«пуск» → линия 1-1</li>
+    <li class="switch">начальный сброс</li></ul></div>
+  <div class="panel"><h3>Мастер-программатор, A</h3><ul>
+    <li class="jack">вход ← линии 1-2, 1-6</li>
+    <li class="jack">стадия 1 → линия 1-3</li>
+    <li class="jack">стадия 2 → не подключена</li>
+    <li class="switch" id="mp-switch">стадия 1: 10 проходов</li></ul></div>
+  <div class="panel"><h3>Передатчик констант</h3><ul>
+    <li class="jack">J ← линия 1-1; K ← линия 1-5</li>
+    <li class="switch">J = 1, K = 2</li>
+    <li>выход → лоток 1</li></ul></div>
+  <div class="panel"><h3>Аккумулятор 2 — разность</h3><ul>
+    <li class="jack">регулятор 5 ← 1-1, выход → 1-2</li>
+    <li class="jack">регулятор 6 ← 1-4, выход → 1-5</li>
+    <li class="jack">регулятор 7 ← 1-5, выход → 1-6</li>
+    <li class="switch">5: α · 6: A, без сброса · 7: α</li>
+    <li>вход α ← лоток 1; выход A → лоток 2</li></ul></div>
+  <div class="panel"><h3>Аккумулятор 1 — квадрат</h3><ul>
+    <li class="jack">регулятор 5 ← 1-4</li>
+    <li class="switch">5: α</li>
+    <li>вход α ← лоток 2; → печать</li></ul></div>
+  <div class="panel"><h3>Печать (перфоратор)</h3><ul>
+    <li class="jack">← линия 1-3, выход → 1-4</li>
+    <li>аккумулятор 1 → карта</li></ul></div>
+</div>
+<div class="tray program">программный лоток 1: линии 1-1 … 1-7</div>
+<div class="tray digit">цифровые лотки: 1 — константы → акк. 2; 2 — акк. 2 → акк. 1</div>
+<div id="sheet-view" aria-label="Лист настройки"></div>
+<p>Готовые результаты прогона — пробитые карты (машина здесь не считает, результаты заранее известны):</p>
+<div id="cards"></div>
+<script type="text/plain" id="sheet" data-code="code/setup-sheet.txt">ЛИСТ НАСТРОЙКИ ENIAC. Задача: таблица квадратов n² для n = 0…9, через разности.
+(n + 1)² = n² + (2n + 1): за проход — печать и два сложения; разность растёт на 2.
+
+БЛОКИ
+аккумулятор 1 — квадрат n²; в начале 0 (начальный сброс)
+аккумулятор 2 — разность 2n + 1; в начале 0, первым шагом принимает J = 1
+передатчик констант — переключатели: J = 1 (первая разность), K = 2 (шаг разности)
+мастер-программатор, шаговый переключатель A — считает проходы
+печать — перфоратор: аккумулятор 1 на карту, одна карта за проход
+
+ЦИФРОВЫЕ ЛОТКИ (кабели чисел)
+лоток 1: передатчик констант, выход → аккумулятор 2, вход α
+лоток 2: аккумулятор 2, выход A → аккумулятор 1, вход α
+аккумулятор 1 → печать (кабель печати)
+
+ПРОГРАММНЫЕ ЛИНИИ (кабели импульсов)
+1-1  инициирующий блок, «пуск» → передатчик констант: J; аккумулятор 2, регулятор 5
+1-2  аккумулятор 2, выход регулятора 5 → мастер-программатор A, вход
+1-3  мастер-программатор A, стадия 1 → печать
+1-4  печать, выход → аккумулятор 2, регулятор 6; аккумулятор 1, регулятор 5
+1-5  аккумулятор 2, выход регулятора 6 → передатчик констант: K; аккумулятор 2, регулятор 7
+1-6  аккумулятор 2, выход регулятора 7 → мастер-программатор A, вход (следующий проход)
+1-7  мастер-программатор A, стадия 2 → никуда не подключена: счёт окончен
+
+ПЕРЕКЛЮЧАТЕЛИ
+аккумулятор 2, регулятор 5: операция α, повтор 1 (принять J)
+аккумулятор 2, регулятор 6: операция A, повтор 1, без сброса (передать разность)
+аккумулятор 1, регулятор 5: операция α, повтор 1 (принять разность)
+аккумулятор 2, регулятор 7: операция α, повтор 1 (принять K)
+мастер-программатор A: стадия 1 — 10 проходов, затем стадия 2
+</script>
+<script src="eniac.js"></script>
+</body>
+</html>

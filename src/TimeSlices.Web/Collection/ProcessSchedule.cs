@@ -101,9 +101,10 @@ public static class ProcessSchedule
     private static readonly string[] MonthsGenitive =
         ["января", "февраля", "марта", "апреля", "мая", "июня", "июля", "августа", "сентября", "октября", "ноября", "декабря"];
 
-    /// <summary>«5 октября 1992, 14:00:03».</summary>
+    /// <summary>«5 октября 1992, 14:00:03»; доли секунды — только если они есть: «6 мая 1949, 10:00:00,005».</summary>
     public static string FormatAt(DateTime at) =>
-        $"{at.Day} {MonthsGenitive[at.Month - 1]} {at.Year}, {at.ToString("HH:mm:ss", CultureInfo.InvariantCulture)}";
+        $"{at.Day} {MonthsGenitive[at.Month - 1]} {at.Year}, {at.ToString("HH:mm:ss", CultureInfo.InvariantCulture)}"
+        + (at.Millisecond > 0 ? "," + at.Millisecond.ToString("000", CultureInfo.InvariantCulture) : "");
 }
 
 /// <summary>Шаг проигрывания: кадр и задержка до следующего кадра.</summary>

@@ -118,13 +118,27 @@ public class ProcessScheduleTests
     public void Time_IsShownInRussian()
     {
         Assert.Equal("5 октября 1992, 14:00:03", ProcessSchedule.FormatAt(new DateTime(1992, 10, 5, 14, 0, 3)));
+        // Доли секунды — только у кадров, где они есть (процесс fetch-execute идёт миллисекундами).
+        Assert.Equal("6 мая 1949, 10:00:00,005", ProcessSchedule.FormatAt(new DateTime(1949, 5, 6, 10, 0, 0, 5)));
+    }
+
+    [Fact]
+    public void Eniac_SetupAndRun_ShowsElapsedLabels_ForDaysOfPreparation()
+    {
+        // План сессии 04, ч. 2, п. 6: на процессе ENIAC проигрыватель показывает «прошло …».
+        var catalog = ContentLoader.Load(TestContent.RealContentRoot());
+        var process = catalog.Examples["squares"].Implementations.Single(i => i.Id == "eniac-1946").Processes.Single().Process!;
+
+        var steps = ProcessSchedule.Build(process);
+
+        Assert.Equal(["прошло 7 сут", "прошло 2 сут 8 ч", null, "прошло 15 ч 59 мин", null], steps.Select(s => s.GapLabel));
     }
 
     [Fact]
     public void RealProcesses_HaveStepForEveryFrame_AndStopDetailsWithLines()
     {
         var catalog = ContentLoader.Load(TestContent.RealContentRoot());
-        foreach (var pr in catalog.Examples["directory"].Implementations.SelectMany(i => i.Processes))
+        foreach (var pr in catalog.Examples.Values.SelectMany(e => e.Implementations).SelectMany(i => i.Processes))
         {
             var steps = ProcessSchedule.Build(pr.Process!);
             Assert.Equal(pr.Process!.Frames.Count, steps.Count);

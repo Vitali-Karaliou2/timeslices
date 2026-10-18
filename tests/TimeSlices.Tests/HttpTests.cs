@@ -121,6 +121,9 @@ public class HttpTests(ShellFactory factory) : IClassFixture<ShellFactory>
     [Theory]
     [InlineData("/slices/net-before-web-1992")]
     [InlineData("/slices/net-before-web-1992/examples/directory?impl=ftp-1992")]
+    [InlineData("/slices/cpu-cycle")]
+    [InlineData("/slices/cpu-cycle/examples/squares?impl=stored-program-1949")]
+    [InlineData("/slices/cpu-cycle/examples/squares?impl=eniac-1946")]
     [InlineData("/")]
     public async Task Learner_Pages_ShowDraftBadgeInsteadOfPrefix(string url)
     {
