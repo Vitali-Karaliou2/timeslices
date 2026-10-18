@@ -86,7 +86,7 @@
             }
             if (i === steps.length - 1 && !step.stop) {
                 playing = false;
-                text += " Конец процесса.";
+                text += (/[.!?…]$/.test(text) ? "" : ".") + " Конец процесса.";
             }
             if (announce) status.textContent = text;
             updateButtons();
