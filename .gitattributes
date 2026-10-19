@@ -4,3 +4,6 @@
 *.gif binary
 *.png binary
 *.db binary
+# Пакетные файлы Windows — с CRLF: cmd с LF может неверно читать метки и строки.
+*.bat text eol=crlf
+*.cmd text eol=crlf
