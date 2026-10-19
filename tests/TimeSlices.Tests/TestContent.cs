@@ -1,6 +1,7 @@
 using System.Text.Json;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
+using TimeSlices.Web.Assessment;
 using TimeSlices.Web.Collection;
 using TimeSlices.Web.Data;
 using TimeSlices.Web.Progress;
@@ -84,6 +85,20 @@ public sealed class TestContent : IDisposable
         return this;
     }
 
+    /// <summary>questions.json среза: вопросы с данными id, эталон «reference-&lt;id&gt;», продолжение с {answer}.</summary>
+    public TestContent Questions(string sliceId, params string[] ids)
+    {
+        var questions = ids.Select(id => new
+        {
+            id,
+            prompt = $"prompt-{id}",
+            referenceReasoning = $"reference-{id}",
+            followUpTemplate = "Вы написали: «{answer}». Почему?",
+        });
+        File.WriteAllText(Path.Combine(Root, "slices", sliceId, "questions.json"), JsonSerializer.Serialize(new { questions }));
+        return this;
+    }
+
     public ContentCatalog Load() => ContentLoader.Load(Root);
 
     public void Dispose()
@@ -106,6 +121,7 @@ public sealed class TestContent : IDisposable
 public sealed class ProgressFixture : IDisposable
 {
     public const string UserId = "user-1";
+    public const string ExaminerId = "examiner-1";
 
     private readonly SqliteConnection _connection = new("DataSource=:memory:");
 
@@ -115,9 +131,14 @@ public sealed class ProgressFixture : IDisposable
         Db = new ApplicationDbContext(new DbContextOptionsBuilder<ApplicationDbContext>().UseSqlite(_connection).Options);
         Db.Database.EnsureCreated();
         Db.Users.Add(new ApplicationUser { Id = UserId, UserName = UserId });
+        Db.Users.Add(new ApplicationUser { Id = ExaminerId, UserName = ExaminerId });
         Db.SaveChanges();
         Service = new SliceProgressService(Db, catalog, TimeProvider.System);
+        SelfCheck = new SelfCheckService(Db, catalog, Service,
+            new Microsoft.AspNetCore.DataProtection.EphemeralDataProtectionProvider(), TimeProvider.System);
     }
+
+    public SelfCheckService SelfCheck { get; }
 
     public ApplicationDbContext Db { get; }
     public SliceProgressService Service { get; }

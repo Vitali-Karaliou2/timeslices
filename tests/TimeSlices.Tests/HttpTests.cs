@@ -3,6 +3,7 @@ using System.Text.RegularExpressions;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.AspNetCore.TestHost;
 using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.DependencyInjection;
 using TimeSlices.Web.Collection;
@@ -14,43 +15,54 @@ namespace TimeSlices.Tests;
 /// Оболочка целиком по HTTP на настоящем Content/ (docs/acceptance.md, п. 2 и 3).
 /// БД — временный файл SQLite; среда не Development, поэтому dev-пользователи не сидируются.
 /// </summary>
-public sealed class ShellFactory : WebApplicationFactory<Program>
+public class ShellFactory : WebApplicationFactory<Program>
 {
     private readonly string _db = Path.Combine(Path.GetTempPath(), "timeslices-tests", $"{Guid.NewGuid():N}.db");
+
+    protected virtual string EnvironmentName => "Testing";
+
+    /// <summary>Часы оболочки: системное время плюс сдвиг, который тест может увеличить («подумал две минуты»).</summary>
+    public TestClock Clock { get; } = new();
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         Directory.CreateDirectory(Path.GetDirectoryName(_db)!);
-        builder.UseEnvironment("Testing");
+        builder.UseEnvironment(EnvironmentName);
         builder.UseSetting("ConnectionStrings:DefaultConnection", $"DataSource={_db}");
+        builder.ConfigureTestServices(services => services.AddSingleton<TimeProvider>(Clock));
     }
 
     /// <summary>Обучаемый со случайным паролем в тестовой БД; возвращает клиента, уже вошедшего под ним.</summary>
-    public async Task<HttpClient> SignedInLearnerAsync()
+    public async Task<HttpClient> SignedInLearnerAsync() => (await SignedInAsync(Roles.Learner)).Client;
+
+    /// <summary>Пользователь с ролью и случайным паролем; клиент уже вошёл под ним.</summary>
+    public async Task<(HttpClient Client, string Email)> SignedInAsync(string role)
     {
-        var email = $"learner-{Guid.NewGuid():N}@test.local";
+        var email = $"{role.ToLowerInvariant()}-{Guid.NewGuid():N}@test.local";
         var password = $"Tt1-{Guid.NewGuid():N}";
         using (var scope = Services.CreateScope())
         {
             var users = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
             var user = new ApplicationUser { UserName = email, Email = email, EmailConfirmed = true };
             Assert.True((await users.CreateAsync(user, password)).Succeeded);
-            Assert.True((await users.AddToRoleAsync(user, Roles.Learner)).Succeeded);
+            Assert.True((await users.AddToRoleAsync(user, role)).Succeeded);
         }
 
         var client = CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
         var form = await client.GetStringAsync("/Identity/Account/Login");
-        var token = Regex.Match(form, "name=\"__RequestVerificationToken\"[^>]*value=\"([^\"]+)\"").Groups[1].Value;
         var response = await client.PostAsync("/Identity/Account/Login", new FormUrlEncodedContent(new Dictionary<string, string>
         {
             ["Input.Email"] = email,
             ["Input.Password"] = password,
             ["Input.RememberMe"] = "false",
-            ["__RequestVerificationToken"] = token,
+            ["__RequestVerificationToken"] = AntiforgeryToken(form),
         }));
         Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
-        return client;
+        return (client, email);
     }
+
+    public static string AntiforgeryToken(string html) =>
+        Regex.Match(html, "name=\"__RequestVerificationToken\"[^>]*value=\"([^\"]+)\"").Groups[1].Value;
 
     protected override void Dispose(bool disposing)
     {
@@ -58,6 +70,19 @@ public sealed class ShellFactory : WebApplicationFactory<Program>
         SqliteConnection.ClearAllPools();
         try { File.Delete(_db); } catch (IOException) { }
     }
+}
+
+public sealed class TestClock : TimeProvider
+{
+    public TimeSpan Offset { get; set; }
+
+    public override DateTimeOffset GetUtcNow() => System.GetUtcNow() + Offset;
+}
+
+/// <summary>То же в среде Development: регистрация без подтверждения почты, сидируются dev-пользователи.</summary>
+public sealed class DevelopmentShellFactory : ShellFactory
+{
+    protected override string EnvironmentName => "Development";
 }
 
 public class HttpTests(ShellFactory factory) : IClassFixture<ShellFactory>

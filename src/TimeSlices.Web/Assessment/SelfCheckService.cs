@@ -49,9 +49,12 @@ public class SelfCheckService(
         catalog.QuestionsOf(key.SliceId).Count > 0
         && (await progress.GetStatusAsync(userId, key)).State is SliceState.InProgress or SliceState.Done;
 
-    /// <summary>Последняя попытка по тематическому срезу (с ответами) или null.</summary>
+    /// <summary>
+    /// Последняя попытка по тематическому срезу (с ответами) или null. Без отслеживания:
+    /// шаги пишутся условными UPDATE, и отслеживаемая копия устарела бы.
+    /// </summary>
     public Task<Attempt?> LatestAsync(string userId, ThematicSliceKey key) =>
-        db.Attempts.Include(a => a.Answers)
+        db.Attempts.AsNoTracking().Include(a => a.Answers)
             .Where(a => a.UserId == userId && a.SliceId == key.SliceId && a.TrackId == key.TrackId)
             .OrderByDescending(a => a.Id)
             .FirstOrDefaultAsync();
@@ -130,9 +133,9 @@ public class SelfCheckService(
             return SelfCheckOutcome.Invalid;
 
         var now = Now;
-        attempt.Answers.Add(new Answer
+        db.Answers.Add(new Answer
         {
-            QuestionId = questionId, Text = answer, ShownAt = shownAt, AnsweredAt = now,
+            AttemptId = attempt.Id, QuestionId = questionId, Text = answer, ShownAt = shownAt, AnsweredAt = now,
             ActiveMs = ClampActive(activeMs, now - shownAt), PasteCount = ClampCount(pasteCount),
         });
         return await SaveAsync();
@@ -202,7 +205,7 @@ public class SelfCheckService(
 
     /// <summary>Отправленная (или уже решённая) попытка с ответами; незавершённая экзаменатору не видна.</summary>
     public Task<Attempt?> SubmittedAttemptAsync(int id) =>
-        db.Attempts.Include(a => a.Answers)
+        db.Attempts.AsNoTracking().Include(a => a.Answers)
             .FirstOrDefaultAsync(a => a.Id == id && a.Status != AttemptStatus.InProgress);
 
     public Task<SelfCheckOutcome> ConfirmAsync(int attemptId, string examinerId) =>
