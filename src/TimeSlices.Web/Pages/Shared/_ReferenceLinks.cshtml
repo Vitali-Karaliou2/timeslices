@@ -1,0 +1,16 @@
+@model IReadOnlyList<string>
+@inject ContentCatalog Catalog
+@* Строка «Справка: …» (ADR 0013, п. 7): у среза — после «Что меняется», у стоп-кадра — под пояснением.
+   Ссылка открывается в новой вкладке, чтобы не сбивать проигрывание и прохождение. *@
+@{
+    var targets = Model.Select(Catalog.ResolveRef).OfType<ReferenceTarget>().ToList();
+}
+@if (targets.Count > 0)
+{
+    <p class="refs">Справка:
+        @for (var i = 0; i < targets.Count; i++)
+        {
+            <a href="@Url.ReferenceHref(targets[i])" target="_blank" rel="noopener">@targets[i].Label</a>@(i + 1 < targets.Count ? ", " : "")
+        }
+    </p>
+}

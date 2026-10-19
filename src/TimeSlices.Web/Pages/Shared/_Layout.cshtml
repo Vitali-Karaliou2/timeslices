@@ -10,6 +10,8 @@
     <header>
         <nav>
             <a asp-area="" asp-page="/Index"><strong>TimeSlices</strong></a>
+            @* Справка открыта и без входа (ADR 0013, п. 8). *@
+            <a asp-area="" asp-page="/Reference/Index">Справка</a>
             @if (User.IsInRole(Roles.Examiner) || User.IsInRole(Roles.Admin))
             {
                 <a asp-area="" asp-page="/Examiner/Index">Сдачи</a>

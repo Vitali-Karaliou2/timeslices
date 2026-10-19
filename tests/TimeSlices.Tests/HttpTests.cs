@@ -187,7 +187,7 @@ public class HttpTests(ShellFactory factory) : IClassFixture<ShellFactory>
 
         var body = await client.GetStringAsync(url);
 
-        var block = Regex.Match(body, "<h2>Актуальность</h2>\\s*<p>[^<]+</p>\\s*<p class=\"relevance-note\">(.*?)</p>", RegexOptions.Singleline);
+        var block = Regex.Match(body, "<h2 data-section=\"relevance\">[^<]*</h2>\\s*<p>[^<]+</p>\\s*<p class=\"relevance-note\">(.*?)</p>", RegexOptions.Singleline);
         Assert.True(block.Success, "нет пояснения сразу после пометки актуальности");
         Assert.StartsWith("<span class=\"draft-badge\"", block.Groups[1].Value);
         Assert.Contains(System.Net.WebUtility.HtmlEncode(DraftMark.Strip(note)[..40]), block.Groups[1].Value);
@@ -196,12 +196,17 @@ public class HttpTests(ShellFactory factory) : IClassFixture<ShellFactory>
     [Fact]
     public async Task Learner_SlicePage_SectionsGoBeforeDecisionAfterThenRelevance()
     {
-        // Решение автора 19.10.2026: «до → решение → после», затем актуальность и примеры.
+        // ADR 0013, п. 1: «до → решение → после», затем актуальность и примеры; подписи по умолчанию (п. 2).
         var client = await factory.SignedInLearnerAsync();
 
-        var body = await client.GetStringAsync("/slices/net-before-web-1992");
+        var body = await client.GetStringAsync("/slices/cpu-cycle");
 
-        string[] order = ["<h2>Связь с предыдущими</h2>", "<h2>Вводимое решение</h2>", "<h2>Дальше</h2>", "<h2>Актуальность</h2>", "<h2>Примеры</h2>"];
+        string[] order =
+        [
+            "<h2 data-section=\"linkBack\">Что было до</h2>", "<h2 data-section=\"introduces\">Что меняется</h2>",
+            "<h2 data-section=\"linkForward\">Что будет после</h2>",
+            "<h2 data-section=\"relevance\">Как это связано с сегодняшним днём?</h2>", "<h2 data-section=\"examples\">Примеры</h2>",
+        ];
         var positions = order.Select(h => body.IndexOf(h, StringComparison.Ordinal)).ToList();
         Assert.DoesNotContain(-1, positions);
         Assert.Equal(positions.Order(), positions);

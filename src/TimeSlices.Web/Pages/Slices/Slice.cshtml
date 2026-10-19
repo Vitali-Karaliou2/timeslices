@@ -4,6 +4,9 @@
     var slice = Model.Slice;
     ViewData["Title"] = slice.Title;
     string TrackTitle(string id) => Model.Catalog.Tracks.First(t => t.Id == id).Title;
+    // Подпись раздела: из headings среза (текст среза, без префикса ЧЕРНОВИК) или по умолчанию (ADR 0013).
+    string Heading(string? fromSlice, string byDefault) => DraftMark.StripOrNull(fromSlice) ?? byDefault;
+    var headings = slice.Headings;
 }
 
 <h1>@slice.Title</h1>
@@ -36,8 +39,8 @@
     return;
 }
 
-@* Порядок разделов — «до → решение → после», затем актуальность (решение автора 19.10.2026). *@
-<h2>Связь с предыдущими</h2>
+@* Порядок разделов — «до → решение → после», затем актуальность (ADR 0013, п. 1); в схеме не настраивается. *@
+<h2 data-section="linkBack">@DraftMark.BadgeFor(headings?.LinkBack)@Heading(headings?.LinkBack, Labels.LinkBackHeading)</h2>
 @if (slice.Prerequisites.Count > 0)
 {
     <ul>
@@ -52,10 +55,14 @@
 }
 <p>@DraftMark.BadgeFor(slice.LinkBack)@DraftMark.Strip(slice.LinkBack)</p>
 
-<h2>Вводимое решение</h2>
+<h2 data-section="introduces">@DraftMark.BadgeFor(headings?.Introduces)@Heading(headings?.Introduces, Labels.IntroducesHeading)</h2>
 <p>@DraftMark.BadgeFor(slice.Introduces)@DraftMark.Strip(slice.Introduces)</p>
+@if (slice.Refs.Count > 0)
+{
+    <partial name="_ReferenceLinks" model="slice.Refs" />
+}
 
-<h2>Дальше</h2>
+<h2 data-section="linkForward">@DraftMark.BadgeFor(headings?.LinkForward)@Heading(headings?.LinkForward, Labels.LinkForwardHeading)</h2>
 @{ var successors = Model.Catalog.SuccessorsOf(Model.Key); }
 @if (successors.Count > 0)
 {
@@ -68,7 +75,7 @@
 }
 <p>@DraftMark.BadgeFor(slice.LinkForward)@DraftMark.Strip(slice.LinkForward)</p>
 
-<h2>Актуальность</h2>
+<h2 data-section="relevance">@DraftMark.BadgeFor(headings?.Relevance)@Heading(headings?.Relevance, Labels.RelevanceHeading)</h2>
 <p>@Labels.Relevance(slice.Relevance)</p>
 @if (DraftMark.StripOrNull(slice.RelevanceNote) is { } relevanceNote)
 {
@@ -76,7 +83,7 @@
 }
 <p>@DraftMark.BadgeFor(slice.WhyNeededToReviewModelCode)<strong>Зачем это, если код пишет модель:</strong> @DraftMark.Strip(slice.WhyNeededToReviewModelCode)</p>
 
-<h2>Примеры</h2>
+<h2 data-section="examples">@Labels.ExamplesHeading</h2>
 @{ var examples = Model.Catalog.ExamplesOf(slice).ToList(); }
 @if (examples.Count == 0)
 {

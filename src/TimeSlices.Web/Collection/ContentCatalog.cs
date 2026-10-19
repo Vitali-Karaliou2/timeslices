@@ -10,6 +10,7 @@ public sealed class ContentCatalog
     private readonly Dictionary<ThematicSliceKey, List<ThematicSliceKey>> _successors;
     private readonly List<(string Directory, Example Example, Implementation Implementation)> _implementationDirectories;
     private readonly IReadOnlyDictionary<string, IReadOnlyList<Question>> _questions;
+    private readonly Dictionary<string, List<ReferenceMention>> _mentions;
 
     // Linux различает регистр в путях, Windows и macOS по умолчанию — нет.
     private static readonly StringComparison PathComparison =
@@ -21,7 +22,8 @@ public sealed class ContentCatalog
         IReadOnlyDictionary<string, Slice> slices,
         IReadOnlyDictionary<string, Example> examples,
         IReadOnlyDictionary<string, IReadOnlyList<Question>> questions,
-        IReadOnlyList<string> sliceOrder)
+        IReadOnlyList<string> sliceOrder,
+        IReadOnlyDictionary<string, Article>? articles = null)
     {
         _questions = questions;
         Root = root;
@@ -43,6 +45,9 @@ public sealed class ContentCatalog
             foreach (var p in prereqs)
                 _successors[p].Add(key);
 
+        Articles = articles ?? new Dictionary<string, Article>(StringComparer.Ordinal);
+        _mentions = BuildMentions(slices, examples, Articles);
+
         _implementationDirectories = examples.Values
             .SelectMany(e => e.Implementations.Select(i => (EnsureTrailingSeparator(Path.GetFullPath(i.Directory)), e, i)))
             .ToList();
@@ -54,6 +59,68 @@ public sealed class ContentCatalog
     public IReadOnlyList<Track> Tracks { get; }
     public IReadOnlyDictionary<string, Slice> Slices { get; }
     public IReadOnlyDictionary<string, Example> Examples { get; }
+
+    /// <summary>Справочные статьи по id (ADR 0013).</summary>
+    public IReadOnlyDictionary<string, Article> Articles { get; }
+
+    /// <summary>Справка по алфавиту заголовков.</summary>
+    public IEnumerable<Article> ArticlesByTitle =>
+        Articles.Values.OrderBy(a => DraftMark.Strip(a.Title), StringComparer.CurrentCulture).ThenBy(a => a.Id, StringComparer.Ordinal);
+
+    /// <summary>Ссылка «статья» или «статья#раздел»; null — статьи или раздела нет (на загруженном каталоге не бывает).</summary>
+    public ReferenceTarget? ResolveRef(string reference) => ResolveRef(Articles, reference, out _);
+
+    /// <summary>Где упоминается статья: сначала срезы, потом кадры.</summary>
+    public IReadOnlyList<ReferenceMention> MentionsOf(string articleId) =>
+        _mentions.TryGetValue(articleId, out var m) ? m : [];
+
+    internal static ReferenceTarget? ResolveRef(IReadOnlyDictionary<string, Article> articles, string reference, out string why)
+    {
+        var parts = (reference ?? "").Split('#');
+        if (parts.Length > 2 || parts[0].Length == 0 || parts.Length == 2 && parts[1].Length == 0)
+        {
+            why = "ожидается 'статья' или 'статья#раздел'";
+            return null;
+        }
+        if (!articles.TryGetValue(parts[0], out var article))
+        {
+            why = $"статья '{parts[0]}' не найдена (нет reference/{parts[0]}/article.json)";
+            return null;
+        }
+        why = "";
+        if (parts.Length == 1)
+            return new ReferenceTarget(article, null);
+        if (article.Sections.FirstOrDefault(s => s.Id == parts[1]) is { } section)
+            return new ReferenceTarget(article, section);
+        why = $"в статье '{article.Id}' нет раздела '{parts[1]}'";
+        return null;
+    }
+
+    private static Dictionary<string, List<ReferenceMention>> BuildMentions(
+        IReadOnlyDictionary<string, Slice> slices, IReadOnlyDictionary<string, Example> examples,
+        IReadOnlyDictionary<string, Article> articles)
+    {
+        var mentions = new Dictionary<string, List<ReferenceMention>>(StringComparer.Ordinal);
+        void Add(string reference, ReferenceMention mention)
+        {
+            if (ResolveRef(articles, reference, out _) is not { } target)
+                return;
+            var list = mentions.TryGetValue(target.Article.Id, out var l) ? l : mentions[target.Article.Id] = [];
+            if (!list.Contains(mention))
+                list.Add(mention);
+        }
+
+        foreach (var slice in slices.Values.OrderBy(s => s.YearFrom).ThenBy(s => s.Id, StringComparer.Ordinal))
+            foreach (var r in slice.Refs)
+                Add(r, new ReferenceMention(slice.Id));
+        foreach (var example in examples.Values.OrderBy(e => e.Id, StringComparer.Ordinal))
+            foreach (var impl in example.Implementations)
+                foreach (var pr in impl.Processes.Where(p => p.Process is not null))
+                    foreach (var frame in pr.Process!.Frames.Where(f => f.Detail is not null).OrderBy(f => f.Order))
+                        foreach (var r in frame.Detail!.Refs)
+                            Add(r, new ReferenceMention(impl.Slice, example.Id, impl.Id, pr.Id, frame.Order));
+        return mentions;
+    }
 
     /// <summary>Все тематические срезы; предшественники всегда раньше последующих.</summary>
     public IReadOnlyList<ThematicSliceKey> ThematicSlices { get; }

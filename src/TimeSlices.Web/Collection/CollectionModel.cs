@@ -37,6 +37,21 @@ public sealed class Slice
     public string WhyNeededToReviewModelCode { get; init; } = "";
     public List<string> Examples { get; init; } = [];
     public string Status { get; init; } = "";
+
+    /// <summary>Замена подписей разделов страницы среза (необязательное, ADR 0013, п. 3).</summary>
+    public SliceHeadings? Headings { get; init; }
+
+    /// <summary>Ссылки на справку: «статья» или «статья#раздел» (необязательное, ADR 0013, п. 7).</summary>
+    public List<string> Refs { get; init; } = [];
+}
+
+/// <summary>Подписи разделов среза; null — подпись по умолчанию (Pages/Labels).</summary>
+public sealed class SliceHeadings
+{
+    public string? LinkBack { get; init; }
+    public string? Introduces { get; init; }
+    public string? LinkForward { get; init; }
+    public string? Relevance { get; init; }
 }
 
 public sealed class Example
@@ -114,6 +129,53 @@ public sealed class FrameDetail
     public string? CodeFile { get; init; }
     public string? Lines { get; init; }
     public string? Explanation { get; init; }
+
+    /// <summary>Ссылки на справку из стоп-кадра (необязательное, ADR 0013, п. 7).</summary>
+    public List<string> Refs { get; init; } = [];
+}
+
+/// <summary>Справочная статья: Content/reference/&lt;article-id&gt;/article.json (ADR 0013, п. 6).</summary>
+public sealed class Article
+{
+    public string Id { get; init; } = "";
+    public string Title { get; init; } = "";
+    public string Summary { get; init; } = "";
+    public List<ArticleSection> Sections { get; init; } = [];
+    public List<string> See { get; init; } = [];
+    public List<ArticleSource> Sources { get; init; } = [];
+    public string Status { get; init; } = "";
+}
+
+public sealed class ArticleSection
+{
+    public string Id { get; init; } = "";
+    public string Heading { get; init; } = "";
+    /// <summary>Год, к которому относится раздел; null — «сейчас».</summary>
+    public int? AsOf { get; init; }
+    public List<string> Paragraphs { get; init; } = [];
+}
+
+public sealed class ArticleSource
+{
+    public string Title { get; init; } = "";
+    public string Url { get; init; } = "";
+}
+
+/// <summary>Ссылка на справку, разобранная каталогом: статья, раздел (или null) и подпись ссылки.</summary>
+public sealed record ReferenceTarget(Article Article, ArticleSection? Section)
+{
+    /// <summary>«Заголовок статьи» или «заголовок статьи: заголовок раздела».</summary>
+    public string Label => DraftMark.Strip(Article.Title) + (Section is null ? "" : ": " + DraftMark.Strip(Section.Heading));
+}
+
+/// <summary>
+/// Где упоминается статья: срез (поле refs) или стоп-кадр процесса (detail.refs). У кадра — пример,
+/// реализация, процесс и номер кадра; срез — тот, к которому привязана реализация.
+/// </summary>
+public sealed record ReferenceMention(
+    string SliceId, string? ExampleId = null, string? ImplementationId = null, string? ProcessId = null, int? FrameOrder = null)
+{
+    public bool IsFrame => FrameOrder is not null;
 }
 
 /// <summary>

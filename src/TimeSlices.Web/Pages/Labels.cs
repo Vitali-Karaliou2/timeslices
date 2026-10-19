@@ -57,6 +57,16 @@ public static class Labels
         _ => code,
     };
 
+    // Подписи разделов страницы среза по умолчанию (ADR 0013, п. 2); срез может заменить их полем headings.
+    public const string LinkBackHeading = "Что было до";
+    public const string IntroducesHeading = "Что меняется";
+    public const string LinkForwardHeading = "Что будет после";
+    public const string RelevanceHeading = "Как это связано с сегодняшним днём?";
+    public const string ExamplesHeading = "Примеры";
+
+    /// <summary>Пометка раздела справочной статьи: «к 1992 году» или «сейчас» (ADR 0013, п. 6).</summary>
+    public static string AsOf(int? year) => year is { } y ? $"к {y} году" : "сейчас";
+
     public static string SliceStatusMark(string status) => status switch
     {
         "draft" => "черновик",

@@ -148,6 +148,7 @@
             var li = items[current];
             li.appendChild(stopPanel);
             stopPanel.querySelector(".player-stop-explanation").textContent = d.explanation || "";
+            showRefs(stopPanel.querySelector(".player-stop-refs"), d.refs || []);
             var file = stopPanel.querySelector(".player-stop-file");
             var code = stopPanel.querySelector(".player-stop-code");
             code.textContent = "";
@@ -166,6 +167,21 @@
             }
             code.hidden = code.childNodes.length === 0;
             stopPanel.hidden = false;
+        }
+
+        // Строка «Справка: …» под пояснением; ссылка открывается в новой вкладке, проигрывание не сбивается.
+        function showRefs(line, refs) {
+            line.textContent = "";
+            refs.forEach(function (r, n) {
+                line.appendChild(document.createTextNode(n === 0 ? "Справка: " : ", "));
+                var a = document.createElement("a");
+                a.href = r.href;
+                a.target = "_blank";
+                a.rel = "noopener";
+                a.textContent = r.label;
+                line.appendChild(a);
+            });
+            line.hidden = refs.length === 0;
         }
 
         function hideStop() {

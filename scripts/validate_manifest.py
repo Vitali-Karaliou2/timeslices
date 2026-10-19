@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Валидатор файлов содержания коллекции: tracks.json, slice.json, manifest.json, questions.json.
+"""Валидатор файлов содержания коллекции: tracks.json, slice.json, manifest.json, questions.json, article.json.
 
 Схема — в docs/spec/manifest-schema.md. Скрипт намеренно простой (без jsonschema),
 чтобы работать в любой среде без зависимостей. Код выхода 1 = есть нарушения.
@@ -13,6 +13,12 @@ import sys
 ID_RE = re.compile(r"^[a-z0-9][a-z0-9-]*$")
 RELEVANCE = {"a", "b", "c"}          # (а) используется моделями, (б) вытеснено, но нужно, (в) исторично
 PROCESS_TYPES = {"execution", "creation"}
+STATUSES = {"draft", "reviewed", "approved"}
+HEADING_KEYS = {"linkBack", "introduces", "linkForward", "relevance"}   # ADR 0013, п. 3
+HEADING_MAX = 80
+# Ссылка на справку: «статья» или «статья#раздел» (ADR 0013, п. 7). Что статья и раздел существуют,
+# проверяет validate_all.py — там видны все файлы.
+REF_RE = re.compile(r"^[a-z0-9][a-z0-9-]*(#[a-z0-9][a-z0-9-]*)?$")
 
 errors = []
 
@@ -84,7 +90,101 @@ def validate_slice(d, path):
     if not isinstance(why, str) or len(why.strip()) < 40:
         err(f"{ctx}: whyNeededToReviewModelCode пуст или слишком короток — "
             "по brief (риск 3) срез без этого ответа в коллекцию не включается")
-    if d.get("status") not in {"draft", "reviewed", "approved"}:
+    if d.get("status") not in STATUSES:
+        err(f"{ctx}: status ∈ {{draft, reviewed, approved}}")
+    if "headings" in d:
+        validate_headings(d["headings"], ctx)
+    if "refs" in d:
+        check_refs(d["refs"], f"{ctx}: refs")
+
+
+def validate_headings(h, ctx):
+    """Необязательные подписи разделов страницы среза (ADR 0013, п. 3–4)."""
+    if not isinstance(h, dict):
+        err(f"{ctx}: headings, если есть, — объект")
+        return
+    for k, v in h.items():
+        if k not in HEADING_KEYS:
+            err(f"{ctx}: headings: неизвестный ключ '{k}' (допустимы {', '.join(sorted(HEADING_KEYS))})")
+        if not isinstance(v, str) or not v.strip():
+            err(f"{ctx}: headings.{k} — непустая строка")
+        elif len(v) > HEADING_MAX:
+            err(f"{ctx}: headings.{k} длиннее {HEADING_MAX} символов")
+
+
+def check_refs(refs, ctx):
+    if not isinstance(refs, list):
+        err(f"{ctx} — список ссылок вида 'статья' или 'статья#раздел'")
+        return
+    for r in refs:
+        if not isinstance(r, str) or not REF_RE.match(r):
+            err(f"{ctx}: ссылка '{r}' — ожидается 'статья' или 'статья#раздел'")
+
+
+def validate_article(d, path):
+    """Справочная статья Content/reference/<id>/article.json (ADR 0013, п. 6)."""
+    ctx = "article.json"
+    require(d, ["id", "title", "summary", "sections", "see", "sources", "status"], ctx)
+    if "id" in d:
+        check_id(d["id"], ctx)
+        folder = os.path.basename(os.path.dirname(os.path.abspath(path)))
+        if folder != d["id"]:
+            err(f"{ctx}: id '{d['id']}' не совпадает с именем папки '{folder}'")
+    for k in ("title", "summary"):
+        if k in d and (not isinstance(d[k], str) or not d[k].strip()):
+            err(f"{ctx}: {k} — непустая строка")
+    sections = d.get("sections")
+    if "sections" in d and (not isinstance(sections, list) or not sections):
+        err(f"{ctx}: sections — непустой список разделов")
+    seen = set()
+    for i, sec in enumerate(sections if isinstance(sections, list) else []):
+        c = f"{ctx}.sections[{i}]"
+        if not isinstance(sec, dict):
+            err(f"{c}: раздел — объект {{id, heading, asOf, paragraphs}}")
+            continue
+        require(sec, ["id", "heading", "asOf", "paragraphs"], c)
+        if "id" in sec:
+            check_id(sec["id"], c)
+            if sec["id"] in seen:
+                err(f"{c}: id раздела '{sec['id']}' повторяется")
+            seen.add(sec["id"])
+        if "heading" in sec and (not isinstance(sec["heading"], str) or not sec["heading"].strip()):
+            err(f"{c}: heading — непустая строка")
+        if "asOf" in sec and sec["asOf"] is not None:
+            # bool в Python — подкласс int; true не год.
+            if isinstance(sec["asOf"], bool):
+                err(f"{c}: asOf — год или null")
+            else:
+                check_year(sec["asOf"], f"{c}: asOf")
+        paragraphs = sec.get("paragraphs")
+        if "paragraphs" in sec and (not isinstance(paragraphs, list) or not paragraphs
+                                    or not all(isinstance(p, str) and p.strip() for p in paragraphs)):
+            err(f"{c}: paragraphs — непустой список непустых строк")
+    see = d.get("see")
+    if "see" in d:
+        if not isinstance(see, list):
+            err(f"{ctx}: see — список id статей")
+        else:
+            reference_dir = os.path.dirname(os.path.dirname(os.path.abspath(path)))
+            for s_id in see:
+                if not isinstance(s_id, str) or not ID_RE.match(s_id):
+                    err(f"{ctx}: see: id '{s_id}' должен быть kebab-case")
+                elif not os.path.isfile(os.path.join(reference_dir, s_id, "article.json")):
+                    err(f"{ctx}: see: статья '{s_id}' не найдена (нет reference/{s_id}/article.json)")
+    sources = d.get("sources")
+    if "sources" in d:
+        if not isinstance(sources, list):
+            err(f"{ctx}: sources — список {{title, url}}")
+        else:
+            for i, src in enumerate(sources):
+                c = f"{ctx}.sources[{i}]"
+                if not isinstance(src, dict):
+                    err(f"{c}: источник — объект {{title, url}}")
+                    continue
+                require(src, ["title", "url"], c)
+                if "url" in src and (not isinstance(src["url"], str) or not src["url"].startswith("https://")):
+                    err(f"{c}: url должен начинаться с https://")
+    if "status" in d and d["status"] not in STATUSES:
         err(f"{ctx}: status ∈ {{draft, reviewed, approved}}")
 
 
@@ -147,6 +247,8 @@ def validate_process_file(pf, ctx):
             err(f"{ctx}.frames[{i}]: нет text")
         if fr.get("stop") and not fr.get("detail"):
             err(f"{ctx}.frames[{i}]: стоп-кадр без detail (что видит пользователь внутри шага)")
+        if isinstance(fr.get("detail"), dict) and "refs" in fr["detail"]:
+            check_refs(fr["detail"]["refs"], f"{ctx}.frames[{i}].detail.refs")
 
 
 def validate_questions(d):
@@ -184,6 +286,8 @@ def main():
         validate_manifest(d, path)
     elif name == "questions.json":
         validate_questions(d)
+    elif name == "article.json":
+        validate_article(d, path)
     else:
         print(f"Неизвестный тип файла: {name}")
         sys.exit(2)

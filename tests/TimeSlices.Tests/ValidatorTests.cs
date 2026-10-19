@@ -43,6 +43,77 @@ public sealed class ValidatorTests : IDisposable
             Assert.Contains("relevanceNote", output);
     }
 
+    [Theory]
+    [InlineData("{\"linkBack\": \"С чего начинаем\"}", 0)]
+    [InlineData("{\"linkBack\": \"ЧЕРНОВИК: С чего начинаем\", \"relevance\": \"x\"}", 0)]
+    [InlineData("{\"examples\": \"Примеры\"}", 1)]      // неизвестный ключ
+    [InlineData("{\"introduces\": \"\"}", 1)]
+    [InlineData("{\"introduces\": \"  \"}", 1)]
+    [InlineData("[\"С чего начинаем\"]", 1)]
+    public void SliceJson_Headings_OnlyKnownKeysWithNonEmptyStrings(string headingsJson, int exitCode)
+    {
+        var slice = MinimalSlice();
+        slice["headings"] = JsonNode.Parse(headingsJson);
+        var path = Path.Combine(_dir, "slice.json");
+        File.WriteAllText(path, slice.ToJsonString());
+
+        var (code, output) = Validate(path);
+
+        Assert.True(code == exitCode, output);
+        if (exitCode == 1)
+            Assert.Contains("headings", output);
+    }
+
+    [Fact]
+    public void SliceJson_Headings_LongerThan80_IsError()
+    {
+        var slice = MinimalSlice();
+        slice["headings"] = new JsonObject { ["linkForward"] = new string('я', 81) };
+        var path = Path.Combine(_dir, "slice.json");
+        File.WriteAllText(path, slice.ToJsonString());
+
+        var (code, output) = Validate(path);
+
+        Assert.True(code == 1, output);
+        Assert.Contains("80", output);
+    }
+
+    [Theory]
+    [InlineData(true, 0)]
+    [InlineData(false, 1)]
+    public void ArticleJson_WithoutSections_IsError(bool withSections, int exitCode)
+    {
+        var dir = Path.Combine(Path.GetDirectoryName(_dir)!, "reference", "dns");
+        Directory.CreateDirectory(dir);
+        var article = new JsonObject
+        {
+            ["id"] = "dns", ["title"] = "t", ["summary"] = "s", ["see"] = new JsonArray(),
+            ["sources"] = new JsonArray(new JsonObject { ["title"] = "RFC 1034", ["url"] = "https://www.rfc-editor.org/rfc/rfc1034" }),
+            ["status"] = "draft",
+        };
+        if (withSections)
+            article["sections"] = new JsonArray(new JsonObject
+            {
+                ["id"] = "1992", ["heading"] = "h", ["asOf"] = 1992, ["paragraphs"] = new JsonArray("ЧЕРНОВИК: p"),
+            });
+        var path = Path.Combine(dir, "article.json");
+        File.WriteAllText(path, article.ToJsonString());
+
+        var (code, output) = Validate(path);
+
+        Assert.True(code == exitCode, output);
+        if (exitCode == 1)
+            Assert.Contains("sections", output);
+    }
+
+    private static JsonObject MinimalSlice() => new()
+    {
+        ["id"] = "test-slice", ["title"] = "t", ["yearFrom"] = 1990, ["yearTo"] = 1991,
+        ["tracks"] = new JsonArray("frontend"), ["introduces"] = "t", ["relevance"] = "b",
+        ["prerequisites"] = new JsonArray(), ["linkBack"] = "t", ["linkForward"] = "t",
+        ["whyNeededToReviewModelCode"] = new string('x', 50), ["examples"] = new JsonArray(), ["status"] = "draft",
+    };
+
     private static (int, string) Validate(string path)
     {
         var script = Path.Combine(TestContent.RealContentRoot(), "..", "..", "..", "scripts", "validate_manifest.py");
