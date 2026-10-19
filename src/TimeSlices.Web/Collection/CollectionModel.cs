@@ -116,6 +116,23 @@ public sealed class FrameDetail
     public string? Explanation { get; init; }
 }
 
+/// <summary>
+/// Вопрос для контроля знаний (Content/slices/&lt;slice-id&gt;/questions.json). Эталонное обоснование
+/// наружу не отдаётся, пока в попытке нет ответа на этот вопрос (ADR 0011, п. 3).
+/// </summary>
+public sealed class Question
+{
+    public string Id { get; init; } = "";
+    public string Prompt { get; init; } = "";
+    public string ReferenceReasoning { get; init; } = "";
+    public string FollowUpTemplate { get; init; } = "";
+}
+
+public sealed class QuestionSet
+{
+    public List<Question> Questions { get; init; } = [];
+}
+
 /// <summary>Тематический срез: срез × трек (brief 5.2). Единица состояния прохождения.</summary>
 public readonly record struct ThematicSliceKey(string SliceId, string TrackId)
 {

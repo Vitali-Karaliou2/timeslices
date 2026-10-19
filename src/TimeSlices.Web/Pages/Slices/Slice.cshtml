@@ -11,6 +11,10 @@
     @slice.YearFrom–@slice.YearTo ·
     треки: @string.Join(", ", slice.Tracks.Select(TrackTitle)) ·
     <span class="state state-@Model.Status.State">@Labels.State(Model.Status)</span>
+    @if (Model.Attempt is { } attempt)
+    {
+        <span class="state submission submission-@attempt.Status">@Labels.Submission(attempt.Status)</span>
+    }
     @if (slice.Status != "approved")
     {
         <span class="draft">· @Labels.SliceStatusMark(slice.Status)</span>
@@ -99,6 +103,24 @@
         </li>
     }
 </ol>
+
+@if (Model.HasQuestions && Model.Status.State is SliceState.InProgress or SliceState.Done)
+{
+    <section>
+        <h2>Контроль знаний</h2>
+        @if (Model.Attempt is { Status: AttemptStatus.Returned } returned)
+        {
+            <p class="examiner-comment">Экзаменатор вернул сдачу: @returned.ExaminerComment</p>
+        }
+        <p><a asp-page="/Slices/Check" asp-route-id="@slice.Id" asp-route-track="@Model.Key.TrackId">@(Model.Attempt switch
+        {
+            null => "Ответить на вопросы",
+            { Status: AttemptStatus.InProgress } => "Продолжить сдачу",
+            { Status: AttemptStatus.Returned } => "Сдать заново",
+            _ => "Посмотреть ответы",
+        })</a></p>
+    </section>
+}
 
 @if (Model.Status.State == SliceState.Done)
 {

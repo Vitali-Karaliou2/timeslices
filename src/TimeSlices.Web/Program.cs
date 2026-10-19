@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.WebEncoders;
 using System.Text.Encodings.Web;
 using System.Text.Unicode;
+using TimeSlices.Web.Assessment;
 using TimeSlices.Web.Collection;
 using TimeSlices.Web.Data;
 using TimeSlices.Web.Progress;
@@ -20,21 +21,35 @@ var connectionString = builder.Configuration.GetConnectionString("DefaultConnect
 builder.Services.AddDbContext<ApplicationDbContext>(options => options.UseSqlite(connectionString));
 builder.Services.AddDatabaseDeveloperPageExceptionFilter();
 
-builder.Services.AddDefaultIdentity<ApplicationUser>(options => options.SignIn.RequireConfirmedAccount = true)
+// Регистрация без подтверждения почты — только в Development (ADR 0011, п. 6): отправителя писем нет.
+builder.Services.AddDefaultIdentity<ApplicationUser>(options =>
+        options.SignIn.RequireConfirmedAccount = !builder.Environment.IsDevelopment())
     .AddRoles<IdentityRole>()
     .AddEntityFrameworkStores<ApplicationDbContext>();
+// Вошедший пользователь без нужной роли получает 403 (страница ошибки — Pages/Status), а не перенаправление.
+builder.Services.ConfigureApplicationCookie(options => options.Events.OnRedirectToAccessDenied = context =>
+{
+    context.Response.StatusCode = StatusCodes.Status403Forbidden;
+    return Task.CompletedTask;
+});
 
 // Всё, кроме страниц входа/регистрации, статических файлов оболочки и сборок примеров (по токену), — только после входа.
 builder.Services.AddAuthorizationBuilder()
     .SetFallbackPolicy(new AuthorizationPolicyBuilder().RequireAuthenticatedUser().Build())
-    .AddPolicy("AdminOnly", p => p.RequireRole(Roles.Admin));
-builder.Services.AddRazorPages(options => options.Conventions.AuthorizeFolder("/Admin", "AdminOnly"));
+    .AddPolicy("AdminOnly", p => p.RequireRole(Roles.Admin))
+    .AddPolicy("ExaminerOnly", p => p.RequireRole(Roles.Examiner, Roles.Admin));
+builder.Services.AddRazorPages(options =>
+{
+    options.Conventions.AuthorizeFolder("/Admin", "AdminOnly");
+    options.Conventions.AuthorizeFolder("/Examiner", "ExaminerOnly");
+});
 // Кириллица в разметке как есть, а не &#x...; (экранирование <, >, & и кавычек сохраняется).
 builder.Services.Configure<WebEncoderOptions>(o => o.TextEncoderSettings = new TextEncoderSettings(UnicodeRanges.All));
 
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddScoped<SliceProgressService>();
 builder.Services.AddSingleton<ContentAccess>();
+builder.Services.AddScoped<SelfCheckService>();
 
 var app = builder.Build();
 
@@ -59,6 +74,9 @@ else
     app.UseExceptionHandler("/Error");
     app.UseHsts();
 }
+
+// Ответ с кодом ошибки и без тела (403 по роли, 404, 400) получает короткую страницу вместо пустой.
+app.UseStatusCodePagesWithReExecute("/Status/{0}");
 
 app.UseRouting();
 

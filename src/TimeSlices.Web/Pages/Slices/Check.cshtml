@@ -1,0 +1,146 @@
+@page "/slices/{id}/check"
+@model TimeSlices.Web.Pages.Slices.CheckModel
+@using TimeSlices.Web.Assessment
+@{
+    var slice = Model.Slice;
+    ViewData["Title"] = "Контроль знаний: " + slice.Title;
+    var attempt = Model.Attempt;
+    var track = Model.Key.TrackId;
+}
+
+<h1>Контроль знаний</h1>
+<p>
+    <a asp-page="/Slices/Slice" asp-route-id="@slice.Id" asp-route-track="@track">@slice.Title</a> ·
+    <span class="state state-@Model.Status.State">@Labels.State(Model.Status)</span>
+    @if (attempt is not null)
+    {
+        <span class="state submission submission-@attempt.Status">@Labels.Submission(attempt.Status)</span>
+    }
+</p>
+
+@if (Model.Locked)
+{
+    <p class="locked">Сдача открывается, когда срез «в процессе» или «пройден».</p>
+    return;
+}
+
+@if (attempt?.Status == AttemptStatus.Returned)
+{
+    <section class="examiner-comment">
+        <h2>Попытка возвращена экзаменатором</h2>
+        <p>@attempt.ExaminerComment</p>
+    </section>
+}
+
+@if (Model.CanStart)
+{
+    <p>Вопросов: @Model.Questions.Count. Ответ пишется своими словами; после ответа вы увидите эталонное
+       обоснование и вопрос-продолжение по вашему ответу, затем сами отметите, насколько ответ совпал с эталоном.
+       Сохранённый ответ изменить нельзя.</p>
+    <form method="post" asp-page-handler="Start" asp-route-id="@slice.Id" asp-route-track="@track">
+        <button type="submit">@(attempt is null ? "Начать" : "Начать новую попытку")</button>
+    </form>
+    return;
+}
+
+@if (attempt!.Status != AttemptStatus.InProgress)
+{
+    <p>
+        @(attempt.Status == AttemptStatus.Submitted ? "Ответы отправлены на подтверждение." : "Экзаменатор подтвердил сдачу.")
+    </p>
+    @foreach (var q in Model.Questions)
+    {
+        <partial name="_CheckQuestion" model="(q, Model.AnswerTo(q))" />
+    }
+    return;
+}
+
+<nav class="questions" aria-label="Вопросы">
+    <ol>
+        @for (var i = 0; i < Model.Questions.Count; i++)
+        {
+            var q = Model.Questions[i];
+            <li>
+                @if (i == Model.SelectedIndex)
+                {
+                    <strong aria-current="step">Вопрос @(i + 1)</strong>
+                }
+                else if (i <= Model.CurrentIndex)
+                {
+                    <a asp-page="/Slices/Check" asp-route-id="@slice.Id" asp-route-track="@track" asp-route-q="@q.Id">Вопрос @(i + 1)</a>
+                }
+                else
+                {
+                    <span class="locked">Вопрос @(i + 1)</span>
+                }
+                @(SelfCheckService.StepOf(Model.AnswerTo(q)) == QuestionStep.Complete ? " ✓" : "")
+            </li>
+        }
+    </ol>
+</nav>
+
+@if (Model.Selected is { } selected)
+{
+    var answer = Model.AnswerTo(selected);
+    var step = SelfCheckService.StepOf(answer);
+    <partial name="_CheckQuestion" model="(selected, answer)" />
+
+    @if (Model.Error is { } error)
+    {
+        <p class="error" role="alert">@error</p>
+    }
+
+    @if (step == QuestionStep.Answer)
+    {
+        <form method="post" asp-page-handler="Answer" asp-route-id="@slice.Id" asp-route-track="@track" data-signs>
+            <input type="hidden" name="questionId" value="@selected.Id" />
+            <input type="hidden" name="shownAt" value="@Model.ShownAtToken" />
+            <input type="hidden" name="activeMs" value="0" />
+            <input type="hidden" name="pasteCount" value="0" />
+            <label for="answer-text">Ваш ответ</label>
+            <textarea id="answer-text" name="text" rows="8" maxlength="@SelfCheckService.MaxAnswerLength" required>@Model.DraftText</textarea>
+            <button type="submit">Ответить</button>
+        </form>
+    }
+    else if (step == QuestionStep.FollowUp)
+    {
+        <form method="post" asp-page-handler="FollowUp" asp-route-id="@slice.Id" asp-route-track="@track" data-signs>
+            <input type="hidden" name="questionId" value="@selected.Id" />
+            <input type="hidden" name="activeMs" value="0" />
+            <input type="hidden" name="pasteCount" value="0" />
+            <label for="follow-up-text">Ответ на продолжение</label>
+            <textarea id="follow-up-text" name="text" rows="6" maxlength="@SelfCheckService.MaxAnswerLength" required>@Model.DraftText</textarea>
+            <button type="submit">Ответить</button>
+        </form>
+    }
+    else if (step == QuestionStep.Rating)
+    {
+        <form method="post" asp-page-handler="Rate" asp-route-id="@slice.Id" asp-route-track="@track" class="rating">
+            <input type="hidden" name="questionId" value="@selected.Id" />
+            <p id="rating-label">Насколько ваш ответ совпал с эталоном?</p>
+            <div class="actions" role="group" aria-labelledby="rating-label">
+                <button type="submit" name="rating" value="@SelfRating.Match">Совпал</button>
+                <button type="submit" name="rating" value="@SelfRating.Partial">Частично</button>
+                <button type="submit" name="rating" value="@SelfRating.NoMatch">Не совпал</button>
+            </div>
+        </form>
+    }
+    else if (Model.CurrentIndex < Model.Questions.Count)
+    {
+        <p><a asp-page="/Slices/Check" asp-route-id="@slice.Id" asp-route-track="@track">К текущему вопросу</a></p>
+    }
+}
+else
+{
+    <section>
+        <h2>Все вопросы пройдены</h2>
+        <p>Посмотреть ответы можно по ссылкам выше. После отправки ответы увидит экзаменатор.</p>
+        <form method="post" asp-page-handler="Submit" asp-route-id="@slice.Id" asp-route-track="@track">
+            <button type="submit">Отправить на подтверждение</button>
+        </form>
+    </section>
+}
+
+@section Scripts {
+    <script src="~/js/self-check.js" asp-append-version="true"></script>
+}

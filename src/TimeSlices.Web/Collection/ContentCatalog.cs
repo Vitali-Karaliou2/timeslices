@@ -9,6 +9,7 @@ public sealed class ContentCatalog
     private readonly Dictionary<ThematicSliceKey, List<ThematicSliceKey>> _prerequisites;
     private readonly Dictionary<ThematicSliceKey, List<ThematicSliceKey>> _successors;
     private readonly List<(string Directory, Example Example, Implementation Implementation)> _implementationDirectories;
+    private readonly IReadOnlyDictionary<string, IReadOnlyList<Question>> _questions;
 
     // Linux различает регистр в путях, Windows и macOS по умолчанию — нет.
     private static readonly StringComparison PathComparison =
@@ -19,8 +20,10 @@ public sealed class ContentCatalog
         IReadOnlyList<Track> tracks,
         IReadOnlyDictionary<string, Slice> slices,
         IReadOnlyDictionary<string, Example> examples,
+        IReadOnlyDictionary<string, IReadOnlyList<Question>> questions,
         IReadOnlyList<string> sliceOrder)
     {
+        _questions = questions;
         Root = root;
         Tracks = tracks.OrderBy(t => t.Order).ThenBy(t => t.Id, StringComparer.Ordinal).ToList();
         Slices = slices;
@@ -83,6 +86,10 @@ public sealed class ContentCatalog
     /// <summary>Примеры среза по возрастанию сложности (brief 7.1).</summary>
     public IEnumerable<Example> ExamplesOf(Slice slice) =>
         slice.Examples.Select(id => Examples[id]).OrderBy(e => e.Complexity).ThenBy(e => e.Id, StringComparer.Ordinal);
+
+    /// <summary>Вопросы среза в порядке questions.json; у среза без файла — пусто.</summary>
+    public IReadOnlyList<Question> QuestionsOf(string sliceId) =>
+        _questions.TryGetValue(sliceId, out var q) ? q : [];
 
     /// <summary>
     /// Реализация (с её примером), статической сборке которой принадлежит файл, или null. Наружу

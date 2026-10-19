@@ -1,6 +1,7 @@
 using System.Text.Json;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
+using TimeSlices.Web.Assessment;
 using TimeSlices.Web.Collection;
 using TimeSlices.Web.Data;
 using TimeSlices.Web.Progress;
@@ -84,6 +85,20 @@ public sealed class TestContent : IDisposable
         return this;
     }
 
+    /// <summary>questions.json среза: вопросы с данными id, эталон «reference-&lt;id&gt;», продолжение с {answer}.</summary>
+    public TestContent Questions(string sliceId, params string[] ids)
+    {
+        var questions = ids.Select(id => new
+        {
+            id,
+            prompt = $"prompt-{id}",
+            referenceReasoning = $"reference-{id}",
+            followUpTemplate = "Вы написали: «{answer}». Почему?",
+        });
+        File.WriteAllText(Path.Combine(Root, "slices", sliceId, "questions.json"), JsonSerializer.Serialize(new { questions }));
+        return this;
+    }
+
     public ContentCatalog Load() => ContentLoader.Load(Root);
 
     public void Dispose()
@@ -106,6 +121,7 @@ public sealed class TestContent : IDisposable
 public sealed class ProgressFixture : IDisposable
 {
     public const string UserId = "user-1";
+    public const string ExaminerId = "examiner-1";
 
     private readonly SqliteConnection _connection = new("DataSource=:memory:");
 
@@ -115,8 +131,24 @@ public sealed class ProgressFixture : IDisposable
         Db = new ApplicationDbContext(new DbContextOptionsBuilder<ApplicationDbContext>().UseSqlite(_connection).Options);
         Db.Database.EnsureCreated();
         Db.Users.Add(new ApplicationUser { Id = UserId, UserName = UserId });
+        Db.Users.Add(new ApplicationUser { Id = ExaminerId, UserName = ExaminerId });
         Db.SaveChanges();
+        _catalog = catalog;
         Service = new SliceProgressService(Db, catalog, TimeProvider.System);
+        SelfCheck = new SelfCheckService(Db, catalog, Service, _protection, TimeProvider.System);
+    }
+
+    public SelfCheckService SelfCheck { get; }
+
+    private readonly ContentCatalog _catalog = null!;
+    private readonly Microsoft.AspNetCore.DataProtection.IDataProtectionProvider _protection =
+        new Microsoft.AspNetCore.DataProtection.EphemeralDataProtectionProvider();
+
+    /// <summary>Действие в своём контексте БД (как отдельный HTTP-запрос) — для проверок гонок.</summary>
+    public async Task<T> WithNewContext<T>(Func<SelfCheckService, Task<T>> action)
+    {
+        await using var db = new ApplicationDbContext(new DbContextOptionsBuilder<ApplicationDbContext>().UseSqlite(_connection).Options);
+        return await action(new SelfCheckService(db, _catalog, new SliceProgressService(db, _catalog, TimeProvider.System), _protection, TimeProvider.System));
     }
 
     public ApplicationDbContext Db { get; }

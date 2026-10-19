@@ -1,0 +1,83 @@
+@page "{attemptId:int}"
+@model TimeSlices.Web.Pages.Examiner.AttemptModel
+@using TimeSlices.Web.Assessment
+@{
+    var a = Model.Attempt;
+    ViewData["Title"] = "Сдача: " + Model.SliceTitle;
+}
+
+<p><a asp-page="/Examiner/Index">← Все сдачи</a></p>
+<h1>@Model.SliceTitle <small>(@a.TrackId)</small></h1>
+<dl class="signs">
+    <dt>Обучаемый</dt><dd>@Model.LearnerName</dd>
+    <dt>Начата</dt><dd>@Labels.When(a.StartedAt)</dd>
+    <dt>Отправлена</dt><dd>@Labels.When(a.SubmittedAt)</dd>
+    <dt>Статус</dt><dd><span class="state submission submission-@a.Status">@Labels.Submission(a.Status)</span></dd>
+    @if (a.DecidedAt is not null)
+    {
+        <dt>Решение</dt><dd>@Model.ExaminerName, @Labels.When(a.DecidedAt)</dd>
+    }
+    @if (a.ExaminerComment is not null)
+    {
+        <dt>Комментарий</dt><dd>@a.ExaminerComment</dd>
+    }
+</dl>
+
+@for (var i = 0; i < Model.Rows.Count; i++)
+{
+    var (q, questionId, answer) = Model.Rows[i];
+    <article class="question">
+        <h2>@(i + 1). @(q is null ? $"Вопрос удалён ({questionId})" : DraftMark.Strip(q.Prompt))</h2>
+        @if (answer is null)
+        {
+            <p>Ответа нет.</p>
+            continue;
+        }
+        <h3>Ответ</h3>
+        <p class="answer-text">@answer.Text</p>
+        <dl class="signs">
+            <dt>Время от показа до ответа</dt><dd>@Labels.Duration(answer.AnsweredAt - answer.ShownAt)</dd>
+            <dt>Активное время ввода</dt><dd>@Labels.Duration(TimeSpan.FromMilliseconds(answer.ActiveMs))</dd>
+            <dt>Вставок из буфера</dt><dd>@answer.PasteCount</dd>
+        </dl>
+        @if (q is not null)
+        {
+            <h3>Вопрос-продолжение</h3>
+            <p class="follow-up">@SelfCheckService.FollowUpText(q, answer.Text)</p>
+        }
+        <h3>Ответ на продолжение</h3>
+        <p class="answer-text">@(answer.FollowUpText ?? "—")</p>
+        @if (answer.FollowUpText is not null)
+        {
+            <dl class="signs">
+                <dt>Активное время ввода</dt><dd>@Labels.Duration(TimeSpan.FromMilliseconds(answer.FollowUpActiveMs ?? 0))</dd>
+                <dt>Вставок из буфера</dt><dd>@(answer.FollowUpPasteCount ?? 0)</dd>
+            </dl>
+        }
+        <p>Самооценка: <strong>@Labels.Rating(answer.SelfRating)</strong></p>
+        @if (q is not null)
+        {
+            <h3>Эталонное обоснование</h3>
+            <p class="reference">@DraftMark.BadgeFor(q.ReferenceReasoning)@DraftMark.Strip(q.ReferenceReasoning)</p>
+        }
+    </article>
+}
+
+@if (a.Status == AttemptStatus.Submitted)
+{
+    <section>
+        <h2>Решение</h2>
+        @if (Model.Error is { } error)
+        {
+            <p class="error" role="alert">@error</p>
+        }
+        <form method="post" asp-page-handler="Confirm" asp-route-attemptId="@a.Id">
+            <button type="submit">Подтвердить</button>
+        </form>
+        <form method="post" asp-page-handler="Return" asp-route-attemptId="@a.Id">
+            <label for="comment">Комментарий для обучаемого (обязателен при возврате)</label>
+            <textarea id="comment" name="comment" rows="4" maxlength="@SelfCheckService.MaxCommentLength" required></textarea>
+            <button type="submit">Вернуть</button>
+        </form>
+    </section>
+}
