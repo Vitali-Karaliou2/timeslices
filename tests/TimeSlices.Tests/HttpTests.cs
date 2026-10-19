@@ -134,10 +134,12 @@ public class HttpTests(ShellFactory factory) : IClassFixture<ShellFactory>
         var json = Regex.Match(body, "<script type=\"application/json\" class=\"process-schedule\">(.*?)</script>", RegexOptions.Singleline);
         Assert.True(json.Success, "нет расписания процесса в странице");
         using var schedule = System.Text.Json.JsonDocument.Parse(json.Groups[1].Value);
-        Assert.Equal(7, schedule.RootElement.GetArrayLength());
-        Assert.Equal("code/session.txt", schedule.RootElement[0].GetProperty("detail").GetProperty("codeFile").GetString());
+        Assert.Equal(9, schedule.RootElement.GetArrayLength());
+        // Первый стоп-кадр — письмо коллеги (откуда пользователь знает адрес), второй — набранная команда.
+        Assert.Equal("code/letter.txt", schedule.RootElement[0].GetProperty("detail").GetProperty("codeFile").GetString());
+        Assert.Equal("code/session.txt", schedule.RootElement[1].GetProperty("detail").GetProperty("codeFile").GetString());
         // Без JS список кадров виден целиком, проигрыватель скрыт; кнопки — настоящие <button>.
-        Assert.Equal(7, Regex.Matches(body, "<li class=\"[^\"]*\" data-order=").Count);
+        Assert.Equal(9, Regex.Matches(body, "<li class=\"[^\"]*\" data-order=").Count);
         Assert.Contains("<div class=\"player\" hidden>", body);
         Assert.Contains("<button type=\"button\" data-action=\"play\">Проиграть</button>", body);
         Assert.Contains("aria-live=\"polite\"", body);
@@ -169,7 +171,7 @@ public class HttpTests(ShellFactory factory) : IClassFixture<ShellFactory>
 
         var body = await client.GetStringAsync("/slices/net-before-web-1992/examples/directory?impl=ftp-1992");
 
-        Assert.Equal(5, Regex.Matches(body, "<span class=\"frame-explanation\">").Count);
+        Assert.Equal(7, Regex.Matches(body, "<span class=\"frame-explanation\">").Count);
         Assert.Contains("<p class=\"player-stop-explanation\" id=\"stop-explanation-ftp-session\"></p>", body);
         Assert.Contains("aria-describedby=\"stop-explanation-ftp-session\"", body);
     }
@@ -189,6 +191,20 @@ public class HttpTests(ShellFactory factory) : IClassFixture<ShellFactory>
         Assert.True(block.Success, "нет пояснения сразу после пометки актуальности");
         Assert.StartsWith("<span class=\"draft-badge\"", block.Groups[1].Value);
         Assert.Contains(System.Net.WebUtility.HtmlEncode(DraftMark.Strip(note)[..40]), block.Groups[1].Value);
+    }
+
+    [Fact]
+    public async Task Learner_SlicePage_SectionsGoBeforeDecisionAfterThenRelevance()
+    {
+        // Решение автора 19.10.2026: «до → решение → после», затем актуальность и примеры.
+        var client = await factory.SignedInLearnerAsync();
+
+        var body = await client.GetStringAsync("/slices/net-before-web-1992");
+
+        string[] order = ["<h2>Связь с предыдущими</h2>", "<h2>Вводимое решение</h2>", "<h2>Дальше</h2>", "<h2>Актуальность</h2>", "<h2>Примеры</h2>"];
+        var positions = order.Select(h => body.IndexOf(h, StringComparison.Ordinal)).ToList();
+        Assert.DoesNotContain(-1, positions);
+        Assert.Equal(positions.Order(), positions);
     }
 
     // Эталон берётся из каталога, а не литералом: тексты срезов — черновики и будут меняться.
@@ -245,6 +261,7 @@ public class HttpTests(ShellFactory factory) : IClassFixture<ShellFactory>
     [Theory]
     [InlineData(FtpEntry, "text/html", "utf-8")]
     [InlineData(Directory + "ftp-1992/code/session.txt", "text/plain", "utf-8")]
+    [InlineData(Directory + "ftp-1992/code/letter.txt", "text/plain", "utf-8")]
     [InlineData(Directory + "ftp-1992/terminal.js", "text/javascript", "utf-8")]
     [InlineData(Directory + "web-1995/code/dept.gif", "image/gif", null)]
     [InlineData(Directory + "web-1995/code/chem/index.html", "text/html", "utf-8")]

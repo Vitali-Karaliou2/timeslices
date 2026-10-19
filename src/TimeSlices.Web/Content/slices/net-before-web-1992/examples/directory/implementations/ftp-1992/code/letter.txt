@@ -1,0 +1,16 @@
+From: sidorova@phys.example.edu (Anna Sidorova)
+Date: Fri, 2 Oct 92 17:41:05 EDT
+To: smirnov@math.example.edu
+Subject: Re: telefon Ivanova
+
+Сергей Петрович,
+
+телефона Ивана Ивановича я на память не помню, но весь список
+сотрудников кафедры теперь лежит у нас на анонимном FTP:
+
+    ftp.phys.example.edu:/pub/staff/staff.txt
+
+Входите под именем anonymous, вместо пароля наберите свой адрес
+почты. Список обновляем раз в семестр; в том же каталоге есть README.
+
+А. Сидорова
