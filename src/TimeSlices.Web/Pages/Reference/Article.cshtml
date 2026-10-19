@@ -19,7 +19,11 @@
     <section>
         @* Один значок на раздел (ADR 0009): если помечен заголовок или хотя бы один абзац. *@
         <h2 id="@part.Id">@DraftMark.Badge(DraftMark.AnyDraft([part.Heading, .. part.Paragraphs]))@DraftMark.Strip(part.Heading)
-            <span class="as-of">(@Labels.AsOf(part.AsOf))</span></h2>
+            @* Пометка «к N году» / «сейчас» — только если её нет в самом заголовке («Как сейчас (сейчас)»). *@
+            @if (!DraftMark.Strip(part.Heading).Contains(Labels.AsOf(part.AsOf), StringComparison.OrdinalIgnoreCase))
+            {
+                <span class="as-of">(@Labels.AsOf(part.AsOf))</span>
+            }</h2>
         @foreach (var paragraph in part.Paragraphs)
         {
             <p>@DraftMark.Strip(paragraph)</p>

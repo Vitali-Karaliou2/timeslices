@@ -58,3 +58,6 @@ dl.signs dd { margin: 0; }
 form.account label, section form label { display: block; margin: .5rem 0 .25rem; }
 section form textarea { width: 100%; box-sizing: border-box; font: inherit; }
 form.role { display: flex; gap: .25rem; margin: 0; }
+
+/* В заголовках значок «черновик» — размером с обычный текст, а не с заголовок. */
+h1 .draft-badge, h2 .draft-badge, h3 .draft-badge { font-size: .8rem; vertical-align: .2em; }

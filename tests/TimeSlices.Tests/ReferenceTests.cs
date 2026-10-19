@@ -147,8 +147,11 @@ public class ReferenceHttpTests(ShellFactory factory) : IClassFixture<ShellFacto
         Assert.DoesNotContain(DraftMark.Prefix, body);
         Assert.Contains("class=\"draft-badge\"", body);
         Assert.Contains("id=\"1992\"", body);
-        Assert.Contains("(к 1992 году)", body);
-        Assert.Contains("(сейчас)", body);
+        // Пометка раздела не повторяет заголовок: «Как было к 1992 году», «Как сейчас» — без скобок.
+        Assert.DoesNotContain("class=\"as-of\"", body);
+        // Источники показываются обучаемому (ADR 0013), внешние ссылки — в новой вкладке.
+        Assert.Contains("<h2>Источники</h2>", body);
+        Assert.Contains("href=\"https://www.rfc-editor.org/rfc/rfc882\" target=\"_blank\" rel=\"noopener\"", body);
         Assert.Contains("<h2>Где упоминается</h2>", body);
         Assert.Contains("href=\"/slices/net-before-web-1992/examples/directory?impl=ftp-1992\"", body);
         Assert.Contains("href=\"/slices/static-page-1995/examples/directory?impl=web-1995\"", body);

@@ -28,6 +28,11 @@
     "top-level-domains",
     "internet-before-web"
   ],
-  "sources": [],
+  "sources": [
+    { "title": "RFC 882. Domain Names — Concepts and Facilities (ноябрь 1983)", "url": "https://www.rfc-editor.org/rfc/rfc882" },
+    { "title": "RFC 1034. Domain Names — Concepts and Facilities (ноябрь 1987)", "url": "https://www.rfc-editor.org/rfc/rfc1034" },
+    { "title": "P. Mockapetris, K. Dunlap. Development of the Domain Name System (1988)", "url": "https://courses.cs.washington.edu/courses/cse551/09sp/papers/dns.pdf" },
+    { "title": "B. Manning. О корневых серверах и зонах com/net/org (рассылка bind-users, 10.04.2000)", "url": "https://lists.isc.org/pipermail/bind-users/2000-April/012334.html" }
+  ],
   "status": "draft"
 }

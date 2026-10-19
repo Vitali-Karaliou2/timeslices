@@ -30,6 +30,11 @@
     "top-level-domains",
     "ftp"
   ],
-  "sources": [],
+  "sources": [
+    { "title": "RFC 959. File Transfer Protocol (октябрь 1985)", "url": "https://www.rfc-editor.org/rfc/rfc959" },
+    { "title": "RFC 882. Domain Names — Concepts and Facilities (ноябрь 1983)", "url": "https://www.rfc-editor.org/rfc/rfc882" },
+    { "title": "Wikipedia: Archie (search engine)", "url": "https://en.wikipedia.org/wiki/Archie_(search_engine)" },
+    { "title": "Wikipedia: Whole Internet User's Guide and Catalog (Ed Krol, 1992)", "url": "https://en.wikipedia.org/wiki/Whole_Internet_User%27s_Guide_and_Catalog" }
+  ],
   "status": "draft"
 }
