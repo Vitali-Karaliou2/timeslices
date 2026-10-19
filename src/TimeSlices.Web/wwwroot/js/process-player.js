@@ -38,6 +38,8 @@
         var timer = null;
 
         player.hidden = false;
+        // С проигрывателем пояснение стоп-кадра видно один раз — в панели; в списке кадров его прячет CSS.
+        section.classList.add("player-on");
         updateButtons();
 
         buttons.play.addEventListener("click", function () {
@@ -56,6 +58,7 @@
 
         // Показать шаг i: подсветить кадр, время сюжета, объявить; на стоп-кадре — остановиться.
         function show(i) {
+            var manual = !playing; // переход кнопками «Назад» / «Вперёд», а не проигрывание
             cancelTimer();
             current = i;
             var step = steps[i];
@@ -77,15 +80,24 @@
             if (step.stop) {
                 playing = false;
                 showStop(step);
-                text = "Стоп-кадр. " + text + (step.detail && step.detail.explanation ? " " + step.detail.explanation : "");
+                // Пояснение — только в панели стоп-кадра; кнопка «Дальше» ссылается на него (aria-describedby).
+                text = "Стоп-кадр " + (i + 1) + " из " + steps.length + ".";
             } else if (playing) {
                 advanceAfterDelay();
             }
             if (i === steps.length - 1 && !step.stop) {
                 playing = false;
-                text += " Конец процесса.";
+                text += (/[.!?…]$/.test(text) ? "" : ".") + " Конец процесса.";
             }
             if (announce) status.textContent = text;
+            // При ручном переходе фокус остаётся на «Вперёд», и aria-describedby у «Дальше» не сработает:
+            // пояснение объявляется скрытым текстом, а на экране остаётся одно — в панели стоп-кадра.
+            if (step.stop && manual && step.detail && step.detail.explanation) {
+                var hidden = document.createElement("span");
+                hidden.className = "visually-hidden";
+                hidden.textContent = " " + step.detail.explanation;
+                status.appendChild(hidden);
+            }
             updateButtons();
         }
 

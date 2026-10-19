@@ -33,11 +33,11 @@
 }
 
 <h2>Вводимое решение</h2>
-<p>@slice.Introduces</p>
+<p>@DraftMark.BadgeFor(slice.Introduces)@DraftMark.Strip(slice.Introduces)</p>
 
 <h2>Актуальность</h2>
 <p>@Labels.Relevance(slice.Relevance)</p>
-<p><strong>Зачем это, если код пишет модель:</strong> @slice.WhyNeededToReviewModelCode</p>
+<p>@DraftMark.BadgeFor(slice.WhyNeededToReviewModelCode)<strong>Зачем это, если код пишет модель:</strong> @DraftMark.Strip(slice.WhyNeededToReviewModelCode)</p>
 
 <h2>Связь с предыдущими</h2>
 @if (slice.Prerequisites.Count > 0)
@@ -52,7 +52,7 @@
         }
     </ul>
 }
-<p>@slice.LinkBack</p>
+<p>@DraftMark.BadgeFor(slice.LinkBack)@DraftMark.Strip(slice.LinkBack)</p>
 
 <h2>Дальше</h2>
 @{ var successors = Model.Catalog.SuccessorsOf(Model.Key); }
@@ -65,7 +65,7 @@
         }
     </ul>
 }
-<p>@slice.LinkForward</p>
+<p>@DraftMark.BadgeFor(slice.LinkForward)@DraftMark.Strip(slice.LinkForward)</p>
 
 <h2>Примеры</h2>
 @{ var examples = Model.Catalog.ExamplesOf(slice).ToList(); }
@@ -78,7 +78,7 @@
     {
         <li>
             <a asp-page="/Slices/Example" asp-route-id="@slice.Id" asp-route-exampleId="@example.Id" asp-route-track="@Model.Key.TrackId">@example.Title</a>
-            — @example.Task
+            — @DraftMark.BadgeFor(example.Task)@DraftMark.Strip(example.Task)
             <details>
                 <summary>Реализации (@example.Implementations.Count)</summary>
                 <ul>
