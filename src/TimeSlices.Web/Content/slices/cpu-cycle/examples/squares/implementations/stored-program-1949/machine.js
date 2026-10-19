@@ -11,7 +11,7 @@
     var LETTERS = ["Z", "A", "S", "T", "U", "E", "G", "O"];
     var COUNTER = 22;                 // ячейка счётчика: N − 1
 
-    var memory, kinds, acc, pc, ir, ticks, halted, changed, printed, running = false;
+    var memory, kinds, acc, pc, ir, ticks, halted, changed, printed, running = false, generation = 0;
     var cells = [];
 
     // Разбор листинга: «адрес  буква [адрес]  слово  смысл» — команда, «адрес[–адрес]  число  смысл» — данные.
@@ -117,13 +117,14 @@
     // Во время прогона строка состояния (aria-live) не обновляется — итог объявляется один раз при остановке.
     function run() {
         running = true;
+        var mine = ++generation;   // кадр от прежнего, уже сброшенного прогона не продолжает работу
         // «Такт» и «Пуск» на время прогона недоступны: фокус переходит на «Сброс», чтобы не потеряться.
         if (document.activeElement === buttons.run || document.activeElement === buttons.step) buttons.reset.focus();
         status.textContent = "Пуск…";
         var last = performance.now(), debt = 0, text = "";
         update();
         (function frame(now) {
-            if (!running) return;
+            if (!running || mine !== generation) return;
             debt += (now - last) * SPEED / 1000;
             last = now;
             while (debt >= 1 && running) { text = tick(); debt--; }
@@ -192,6 +193,7 @@
         radio.addEventListener("change", function () {
             var before = memory[COUNTER];
             memory[COUNTER] = selectedCounter();
+            cells.forEach(function (td) { td.classList.remove("toggled"); });
             cells[COUNTER].classList.add("toggled");
             status.className = "";
             var text = "Изменена только ячейка 22: " + before + " → " + memory[COUNTER] + ".";

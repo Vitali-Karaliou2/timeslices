@@ -49,7 +49,10 @@ public sealed class ValidatorTests : IDisposable
         var start = new ProcessStartInfo("python3") { RedirectStandardOutput = true, RedirectStandardError = true };
         start.ArgumentList.Add(script);
         start.ArgumentList.Add(path);
-        using var process = Process.Start(start)!;
+        Process process;
+        try { process = Process.Start(start)!; }
+        catch (System.ComponentModel.Win32Exception e) { throw new InvalidOperationException("для теста валидатора нужен python3 в PATH", e); }
+        using var _ = process;
         var output = process.StandardOutput.ReadToEnd() + process.StandardError.ReadToEnd();
         process.WaitForExit();
         return (process.ExitCode, output);

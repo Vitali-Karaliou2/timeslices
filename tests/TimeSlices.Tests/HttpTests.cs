@@ -163,7 +163,7 @@ public class HttpTests(ShellFactory factory) : IClassFixture<ShellFactory>
         var block = Regex.Match(body, "<h2>Актуальность</h2>\\s*<p>[^<]+</p>\\s*<p class=\"relevance-note\">(.*?)</p>", RegexOptions.Singleline);
         Assert.True(block.Success, "нет пояснения сразу после пометки актуальности");
         Assert.StartsWith("<span class=\"draft-badge\"", block.Groups[1].Value);
-        Assert.Contains(System.Net.WebUtility.HtmlEncode(DraftMark.Strip(note))[..40], block.Groups[1].Value);
+        Assert.Contains(System.Net.WebUtility.HtmlEncode(DraftMark.Strip(note)[..40]), block.Groups[1].Value);
     }
 
     // Эталон берётся из каталога, а не литералом: тексты срезов — черновики и будут меняться.
