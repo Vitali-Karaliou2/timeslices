@@ -29,6 +29,8 @@ public sealed class Slice
     public List<string> Tracks { get; init; } = [];
     public string Introduces { get; init; } = "";
     public string Relevance { get; init; } = "";
+    /// <summary>Пояснение к пометке актуальности (необязательное, ADR 0010).</summary>
+    public string? RelevanceNote { get; init; }
     public List<Prerequisite> Prerequisites { get; init; } = [];
     public string LinkBack { get; init; } = "";
     public string LinkForward { get; init; } = "";

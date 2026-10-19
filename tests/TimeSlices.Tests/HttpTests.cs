@@ -149,6 +149,23 @@ public class HttpTests(ShellFactory factory) : IClassFixture<ShellFactory>
         Assert.Contains("aria-describedby=\"stop-explanation-ftp-session\"", body);
     }
 
+    [Theory]
+    [InlineData("/slices/cpu-cycle", "cpu-cycle")]
+    [InlineData("/slices/net-before-web-1992", "net-before-web-1992")]
+    public async Task Learner_SlicePage_ShowsRelevanceNoteWithDraftBadge(string url, string sliceId)
+    {
+        // ADR 0010: пояснение — рядом с пометкой актуальности, без префикса, со значком «черновик» (ADR 0009).
+        var client = await factory.SignedInLearnerAsync();
+        var note = factory.Services.GetRequiredService<ContentCatalog>().Slices[sliceId].RelevanceNote!;
+
+        var body = await client.GetStringAsync(url);
+
+        var block = Regex.Match(body, "<h2>Актуальность</h2>\\s*<p>[^<]+</p>\\s*<p class=\"relevance-note\">(.*?)</p>", RegexOptions.Singleline);
+        Assert.True(block.Success, "нет пояснения сразу после пометки актуальности");
+        Assert.StartsWith("<span class=\"draft-badge\"", block.Groups[1].Value);
+        Assert.Contains(System.Net.WebUtility.HtmlEncode(DraftMark.Strip(note))[..40], block.Groups[1].Value);
+    }
+
     // Эталон берётся из каталога, а не литералом: тексты срезов — черновики и будут меняться.
     // На странице текст показан без префикса «ЧЕРНОВИК:» (DraftMark).
     private string IntroducesOf(string sliceId) =>

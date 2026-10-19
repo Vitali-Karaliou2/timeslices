@@ -69,6 +69,10 @@ def validate_slice(d, path):
         err(f"{ctx}: yearFrom > yearTo")
     if d.get("relevance") not in RELEVANCE:
         err(f"{ctx}: relevance должен быть одним из {sorted(RELEVANCE)}")
+    if "relevanceNote" in d:   # необязательное, ADR 0010
+        note = d["relevanceNote"]
+        if not isinstance(note, str) or not note.strip():
+            err(f"{ctx}: relevanceNote, если есть, — непустая строка")
     if not isinstance(d.get("tracks"), list) or not d.get("tracks"):
         err(f"{ctx}: tracks — непустой список id треков")
     for p in d.get("prerequisites", []) or []:

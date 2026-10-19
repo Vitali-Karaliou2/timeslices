@@ -20,6 +20,29 @@ public class RealContentTests
         Assert.All(_catalog.Slices.Values, s => Assert.Equal("draft", s.Status));
     }
 
+    [Theory]
+    [InlineData("net-before-web-1992", "net-01_net-before-web-1992.md")]
+    [InlineData("static-page-1995", "fe-01_static-page-1995.md")]
+    [InlineData("forms-cgi-1995", "fe-02_forms-cgi-1995.md")]
+    [InlineData("cpu-cycle", "hw-01_cpu-cycle.md")]
+    public void RelevanceNote_IsVerbatimFromSection4OfDescription(string sliceId, string description)
+    {
+        // ADR 0010: текст — дословно из раздела 4 описания («Пояснение актуальности»).
+        var md = File.ReadAllText(Path.Combine(_catalog.Root, "..", "..", "..", "docs", "slices", description));
+        var note = Regex.Match(md, @"\*\*Пояснение актуальности \(([abc])\)\*\*: (.*)");
+
+        Assert.True(note.Success, $"{description}: нет пояснения актуальности");
+        Assert.Equal(note.Groups[1].Value, _catalog.Slices[sliceId].Relevance);
+        Assert.Equal(note.Groups[2].Value.Trim(), _catalog.Slices[sliceId].RelevanceNote);
+    }
+
+    [Fact]
+    public void RelevanceNote_AbsentWhereNoDescriptionYet()
+    {
+        Assert.Equal(["ajax-2005", "punch-cards-1972", "rup-vs-xp-2001"],
+            _catalog.Slices.Values.Where(s => s.RelevanceNote is null).Select(s => s.Id).Order(StringComparer.Ordinal));
+    }
+
     [Fact]
     public void Graph_HasNoCycles()
     {
