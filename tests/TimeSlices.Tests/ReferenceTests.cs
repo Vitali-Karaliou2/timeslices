@@ -72,6 +72,22 @@ public class ReferenceCatalogTests
     }
 
     [Fact]
+    public void Load_NullRefsOrNonHttpsSource_FailsWithFileName()
+    {
+        using var content = new TestContent().Track("t").Slice("a", "t").Article("dns", "1992");
+        File.WriteAllText(Path.Combine(content.Root, "reference", "dns", "article.json"),
+            File.ReadAllText(Path.Combine(content.Root, "reference", "dns", "article.json"))
+                .Replace("\"sources\":[]", "\"sources\":[{\"title\":\"x\",\"url\":\"javascript:alert(1)\"}]"));
+        var slice = Path.Combine(content.Root, "slices", "a", "slice.json");
+        File.WriteAllText(slice, File.ReadAllText(slice).Replace("\"status\":", "\"refs\":null,\"status\":"));
+
+        var ex = Assert.Throws<ContentLoadException>(content.Load);
+
+        Assert.Contains(ex.Problems, p => p.Contains("article.json") && p.Contains("https://"));
+        Assert.Contains(ex.Problems, p => p.Contains("slices/a/slice.json") && p.Contains("refs"));
+    }
+
+    [Fact]
     public void Load_RefToExistingSection_Succeeds()
     {
         using var content = new TestContent().Track("t").Slice("a", "t").Article("dns", "1992", "now").SliceRefs("a", "dns#1992", "dns");

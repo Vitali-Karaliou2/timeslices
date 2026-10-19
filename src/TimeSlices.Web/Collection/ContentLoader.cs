@@ -159,6 +159,16 @@ public static class ContentLoader
             var article = ReadJson<Article>(file, problems);
             if (article is null)
                 continue;
+            // Явный null в JSON обходит значения по умолчанию ([]); без этой проверки — NullReferenceException без имени файла.
+            if (article.Sections is null || article.See is null || article.Sources is null
+                || article.Sections.Any(s => s is null || s.Paragraphs is null) || article.Sources.Any(s => s is null))
+            {
+                problems.Add($"{Rel(root, file)}: sections, see, sources и paragraphs — списки, не null");
+                continue;
+            }
+            // Ссылки на источники показываются без входа: только https (как в validate_manifest.py), не javascript: и т. п.
+            foreach (var source in article.Sources.Where(s => !(s.Url ?? "").StartsWith("https://", StringComparison.Ordinal)))
+                problems.Add($"{Rel(root, file)}: адрес источника '{source.Url}' должен начинаться с https://");
             if (article.Id != Path.GetFileName(dir))
                 problems.Add($"{Rel(root, file)}: id '{article.Id}' не совпадает с именем папки");
             if (!articles.TryAdd(article.Id, article))
@@ -179,7 +189,9 @@ public static class ContentLoader
         string root, Dictionary<string, Slice> slices, Dictionary<string, Example> examples,
         Dictionary<string, Article> articles, List<string> problems)
     {
-        foreach (var slice in slices.Values)
+        foreach (var slice in slices.Values.Where(s => s.Refs is null))
+            problems.Add($"slices/{slice.Id}/slice.json: refs — список, не null");
+        foreach (var slice in slices.Values.Where(s => s.Refs is not null))
             foreach (var r in slice.Refs)
                 if (ContentCatalog.ResolveRef(articles, r, out var why) is null)
                     problems.Add($"slices/{slice.Id}/slice.json: ссылка на справку '{r}' — {why}");
@@ -188,7 +200,9 @@ public static class ContentLoader
             foreach (var impl in example.Implementations)
                 foreach (var pr in impl.Processes.Where(p => p.Process is not null))
                     foreach (var frame in pr.Process!.Frames.Where(f => f.Detail is not null))
-                        foreach (var r in frame.Detail!.Refs)
+                        if (frame.Detail!.Refs is null)
+                            problems.Add($"{Rel(root, Path.Combine(impl.Directory, pr.File))}: кадр {frame.Order}: detail.refs — список, не null");
+                        else foreach (var r in frame.Detail.Refs)
                             if (ContentCatalog.ResolveRef(articles, r, out var why) is null)
                                 problems.Add($"{Rel(root, Path.Combine(impl.Directory, pr.File))}: кадр {frame.Order}: ссылка на справку '{r}' — {why}");
     }
