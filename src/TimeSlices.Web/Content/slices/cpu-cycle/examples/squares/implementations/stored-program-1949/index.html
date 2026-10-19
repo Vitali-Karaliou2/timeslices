@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!-- Средство визуализации, не код эпохи: учебная машина с хранимой программой (не EDSAC и не эмуляция
-     настоящей машины, CLAUDE.md). Показываемый код — code/squares.txt; его копия ниже (id="program")
-     должна совпадать с ним дословно (ADR 0006): машина загружает память из этой копии. -->
+     настоящей машины, CLAUDE.md). Показываемый код — code/squares.txt и code/cubes.txt; их копии ниже
+     (id="program", id="cubes") должны совпадать с ними дословно (ADR 0006): машина загружает память из этих копий. -->
 <html lang="ru">
 <head>
 <meta charset="utf-8">
@@ -43,15 +43,20 @@
   <button type="button" id="step">Такт</button>
   <button type="button" id="run">Пуск</button>
   <button type="button" id="reset">Сброс</button>
+  <fieldset><legend>Задача</legend>
+    <label><input type="radio" name="task" value="program" checked> квадраты</label>
+    <label><input type="radio" name="task" value="cubes"> кубы</label>
+  </fieldset>
   <fieldset><legend>Таблица</legend>
-    <label><input type="radio" name="n" value="9" checked> 10 квадратов</label>
-    <label><input type="radio" name="n" value="99"> 100 квадратов</label>
+    <label><input type="radio" name="n" value="9" checked> 10</label>
+    <label><input type="radio" name="n" value="99"> 100</label>
   </fieldset>
 </div>
-<p id="status" aria-live="polite">Программа загружена: 0–16 — команды, 20–25 — числа, 28–37 — пустая таблица.</p>
+<p id="status" aria-live="polite"></p>
 <p id="legend">В ячейке: <i>адрес</i>, буквенная запись слова и само слово (число).
   <span style="background:#eef3ff">команды</span> <span style="background:#f2fbef">числа</span>
-  <span style="outline:2px solid #2650c9">счётчик команд</span> <span style="background:#ffe9a8">записано последним тактом</span></p>
+  <span style="outline:2px solid #2650c9">счётчик команд</span> <span style="background:#ffe9a8">записано последним тактом</span>
+  <span style="outline:2px dashed #c05a00">изменено переключателем</span></p>
 <table id="memory" aria-label="Память: 128 ячеек"></table>
 <p id="printer"></p>
 <script type="text/plain" id="program" data-code="code/squares.txt">Таблица квадратов через разности: (n + 1)² = n² + (2n + 1). Только сложение.
@@ -85,6 +90,42 @@
    24      1  константа 1
    25      0  рабочая
 28–37      0  таблица (для 100 квадратов — 28–127), в начале пустая
+</script>
+<script type="text/plain" id="cubes" data-code="code/cubes.txt">Таблица кубов через разности: куб += d1, d1 += d2, d2 += 6. Только сложение.
+Учебная машина: слово команды = код операции × 1000 + адрес.
+Коды операций: Z 0, A 1, S 2, T 3, U 4, E 5, G 6, O 7.
+
+Адрес  Команда  Слово  Смысл
+    0  T 25      3025  очистить аккумулятор
+    1  A 20      1020  взять текущий куб
+    2  T 28      3028  записать в таблицу — эту команду программа меняет
+    3  A 2       1002  взять саму команду из ячейки 2 как число
+    4  A 24      1024  прибавить 1 — адрес в команде сдвинулся
+    5  T 2       3002  вернуть команду на место: теперь T 29
+    6  A 20      1020  куб += d1
+    7  A 21      1021
+    8  T 20      3020
+    9  A 21      1021  d1 += d2
+   10  A 26      1026
+   11  T 21      3021
+   12  A 26      1026  d2 += 6
+   13  A 23      1023
+   14  T 26      3026
+   15  A 22      1022  счётчик −= 1
+   16  S 24      2024
+   17  U 22      4022
+   18  E 0       5000  если счётчик ≥ 0 — следующий проход
+   19  Z            0  стоп
+
+Адрес  Число  Смысл
+   20      0  текущий куб
+   21      1  d1 — первая разность
+   22      9  счётчик: N − 1 (10 кубов — 9, 100 кубов — 99)
+   23      6  константа 6
+   24      1  константа 1
+   25      0  рабочая
+   26      6  d2 — вторая разность
+28–37      0  таблица (для 100 кубов — 28–127), в начале пустая
 </script>
 <script src="machine.js"></script>
 </body>

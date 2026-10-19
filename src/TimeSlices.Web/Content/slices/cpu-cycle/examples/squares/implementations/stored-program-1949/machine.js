@@ -1,6 +1,7 @@
 // Средство визуализации, не код эпохи: учебная машина среза «Программа в памяти» (описание hw-01, раздел 5).
 // Не EDSAC: свой формат слова (код операции × 1000 + адрес), 128 ячеек, восемь команд.
-// Память загружается из копии code/squares.txt (id="program"), поэтому машина исполняет ровно показанную программу.
+// Память загружается из копии code/squares.txt (id="program") или code/cubes.txt (id="cubes"),
+// поэтому машина исполняет ровно показанную программу.
 (function () {
     "use strict";
 
@@ -10,30 +11,67 @@
     var LETTERS = ["Z", "A", "S", "T", "U", "E", "G", "O"];
     var COUNTER = 22;                 // ячейка счётчика: N − 1
 
-    var source = document.getElementById("program").textContent;
-    var memory, acc, pc, ir, ticks, halted, changed, printed, running = false;
+    var memory, kinds, acc, pc, ir, ticks, halted, changed, printed, running = false;
     var cells = [];
 
     // Разбор листинга: «адрес  буква [адрес]  слово  смысл» — команда, «адрес[–адрес]  число  смысл» — данные.
-    function load() {
-        memory = new Array(SIZE).fill(0);
-        source.split("\n").forEach(function (line) {
+    // Возвращает образ памяти и вид ячеек (prog — команда, data — число, "" — таблица и пустые ячейки).
+    function parse(id) {
+        var image = new Array(SIZE).fill(0), kind = new Array(SIZE).fill("");
+        document.getElementById(id).textContent.split("\n").forEach(function (line) {
             var m = /^\s*(\d+)\s+([A-Z])(?:\s+(\d+))?\s+(\d+)/.exec(line);
             if (m) {
                 var word = CODES[m[2]] * 1000 + Number(m[3] || 0);
                 if (word !== Number(m[4])) throw new Error("слово не совпадает с командой: " + line);
-                memory[Number(m[1])] = word;
+                image[Number(m[1])] = word;
+                kind[Number(m[1])] = "prog";
                 return;
             }
             m = /^\s*(\d+)(?:–(\d+))?\s+(-?\d+)\s/.exec(line);
-            if (m) for (var a = Number(m[1]); a <= Number(m[2] || m[1]); a++) memory[a] = Number(m[3]);
+            if (m) for (var a = Number(m[1]); a <= Number(m[2] || m[1]); a++) {
+                image[a] = Number(m[3]);
+                if (!m[2]) kind[a] = "data";
+            }
         });
-        memory[COUNTER] = selectedCounter();
+        image[COUNTER] = selectedCounter();
+        return { memory: image, kinds: kind };
+    }
+
+    function load() {
+        var image = parse(selectedTask());
+        memory = image.memory;
+        kinds = image.kinds;
         acc = 0; pc = 0; ir = null; ticks = 0; halted = false; changed = -1; printed = [];
+        cells.forEach(function (td) { td.classList.remove("toggled"); });
     }
 
     function selectedCounter() {
         return Number(document.querySelector("input[name=n]:checked").value);
+    }
+
+    function selectedTask() {
+        return document.querySelector("input[name=task]:checked").value;
+    }
+
+    // «0–19» по списку адресов одного вида; адреса идут подряд — для подписи этого достаточно.
+    function spans(list) {
+        var parts = [];
+        list.forEach(function (a, i) {
+            if (i > 0 && a === list[i - 1] + 1) parts[parts.length - 1][1] = a;
+            else parts.push([a, a]);
+        });
+        return parts.map(function (p) { return p[0] === p[1] ? String(p[0]) : p[0] + "–" + p[1]; }).join(", ");
+    }
+
+    function addresses(kind) {
+        var list = [];
+        kinds.forEach(function (k, a) { if (k === kind) list.push(a); });
+        return list;
+    }
+
+    function loadedText() {
+        return "Программа загружена: " + spans(addresses("prog")) + " — команды, " + spans(addresses("data")) +
+            " — числа, 28–" + (28 + memory[COUNTER]) + " — пустая таблица.";
     }
 
     // Буквенная запись слова: у любого неотрицательного числа с кодом 0–7 она есть — команда и число неотличимы.
@@ -103,8 +141,6 @@
             var row = table.insertRow();
             for (var c = 0; c < 8; c++) {
                 var td = row.insertCell();
-                var a = r * 8 + c;
-                td.className = a <= 16 ? "prog" : a >= 20 && a <= 25 ? "data" : "";
                 cells.push(td);
             }
         }
@@ -128,12 +164,14 @@
             td.appendChild(w);
             td.appendChild(document.createElement("br"));
             td.appendChild(document.createTextNode(letters(memory[a])));
+            td.classList.toggle("prog", kinds[a] === "prog");
+            td.classList.toggle("data", kinds[a] === "data");
             td.classList.toggle("pc", a === pc && !halted);
             td.classList.toggle("changed", a === changed);
         });
         buttons.step.disabled = running;
         buttons.run.disabled = running;
-        document.querySelectorAll("input[name=n]").forEach(function (r) { r.disabled = running; });
+        document.querySelectorAll("input[name=n], input[name=task]").forEach(function (r) { r.disabled = running; });
     }
 
     function show(text) {
@@ -146,7 +184,6 @@
     buttons.reset.addEventListener("click", function () {
         running = false;   // сброс во время «Пуск» останавливает прогон
         load();
-        cells[COUNTER].classList.remove("toggled");
         status.className = "";
         show("Сброс: программа и числа снова загружены из листинга, счётчик команд = 0.");
     });
@@ -164,7 +201,24 @@
         });
     });
 
+    // Переключатель задачи загружает другую программу в ту же память и отмечает ячейки, которые
+    // по листингу отличаются от другой программы (число повторов то же): другое слово или другая роль.
+    // Ячейка 19 у квадратов пуста, у кубов — Z; слово у обеих 0, но по листингу это разные ячейки.
+    document.querySelectorAll("input[name=task]").forEach(function (radio) {
+        radio.addEventListener("change", function () {
+            var other = parse(selectedTask() === "cubes" ? "program" : "cubes");
+            load();
+            var diff = [];
+            memory.forEach(function (word, a) { if (word !== other.memory[a] || kinds[a] !== other.kinds[a]) diff.push(a); });
+            diff.forEach(function (a) { cells[a].classList.add("toggled"); });
+            status.className = "";
+            show("Загружена программа " + (selectedTask() === "cubes" ? "кубов" : "квадратов") + ": изменились " +
+                diff.length + " ячеек — " + spans(diff) + ". Машина та же, счётчик команд = 0.");
+        });
+    });
+
     build();
     load();
+    status.textContent = loadedText();
     update();
 })();
