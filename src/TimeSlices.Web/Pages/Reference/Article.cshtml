@@ -1,0 +1,77 @@
+@page "/reference/{id}"
+@model TimeSlices.Web.Pages.Reference.ArticleModel
+@{
+    var article = Model.Article;
+    ViewData["Title"] = DraftMark.Strip(article.Title);
+    string SliceTitle(string id) => Model.Catalog.Slices.TryGetValue(id, out var s) ? s.Title : id;
+}
+
+<p><a asp-page="/Reference/Index">← Справка</a></p>
+<h1>@DraftMark.BadgeFor(article.Title)@DraftMark.Strip(article.Title)</h1>
+@if (article.Status != "approved")
+{
+    <p class="draft">@Labels.SliceStatusMark(article.Status)</p>
+}
+<p class="summary">@DraftMark.BadgeFor(article.Summary)@DraftMark.Strip(article.Summary)</p>
+
+@foreach (var part in article.Sections)
+{
+    <section>
+        @* Один значок на раздел (ADR 0009): если помечен заголовок или хотя бы один абзац. *@
+        <h2 id="@part.Id">@DraftMark.Badge(DraftMark.AnyDraft([part.Heading, .. part.Paragraphs]))@DraftMark.Strip(part.Heading)
+            <span class="as-of">(@Labels.AsOf(part.AsOf))</span></h2>
+        @foreach (var paragraph in part.Paragraphs)
+        {
+            <p>@DraftMark.Strip(paragraph)</p>
+        }
+    </section>
+}
+
+@if (article.See.Count > 0)
+{
+    <h2>См. также</h2>
+    <ul>
+        @foreach (var see in article.See.Where(Model.Catalog.Articles.ContainsKey))
+        {
+            <li><a asp-page="/Reference/Article" asp-route-id="@see">@DraftMark.Strip(Model.Catalog.Articles[see].Title)</a></li>
+        }
+    </ul>
+}
+
+@if (article.Sources.Count > 0)
+{
+    <h2>Источники</h2>
+    <ul>
+        @foreach (var source in article.Sources)
+        {
+            <li><a href="@source.Url" target="_blank" rel="noopener">@source.Title</a></li>
+        }
+    </ul>
+}
+
+<h2>Где упоминается</h2>
+@if (Model.Mentions.Count == 0)
+{
+    <p>Пока нигде.</p>
+}
+else
+{
+    <ul>
+        @foreach (var m in Model.Mentions)
+        {
+            <li>
+                @if (m.IsFrame)
+                {
+                    var example = Model.Catalog.Examples[m.ExampleId!];
+                    <a asp-page="/Slices/Example" asp-route-id="@Model.ExampleSliceOf(m)" asp-route-exampleId="@m.ExampleId"
+                       asp-route-impl="@m.ImplementationId">@SliceTitle(m.SliceId)</a>
+                    <text>— пример «@example.Title», реализация @m.ImplementationId, процесс @m.ProcessId, кадр @m.FrameOrder</text>
+                }
+                else
+                {
+                    <a asp-page="/Slices/Slice" asp-route-id="@m.SliceId">@SliceTitle(m.SliceId)</a> <text>— срез</text>
+                }
+            </li>
+        }
+    </ul>
+}

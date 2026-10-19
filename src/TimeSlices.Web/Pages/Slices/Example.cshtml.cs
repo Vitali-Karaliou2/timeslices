@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using TimeSlices.Web.Collection;
 using TimeSlices.Web.Data;
+using TimeSlices.Web.Pages.Reference;
 using TimeSlices.Web.Progress;
 
 namespace TimeSlices.Web.Pages.Slices;
@@ -82,7 +83,8 @@ public class ExampleModel(ContentCatalog catalog, SliceProgressService progress,
         }
         foreach (var pr in chosen.Processes)
             if (pr.Process is { } process)
-                Schedules[pr.Id] = ProcessSchedule.Build(process);
+                Schedules[pr.Id] = ProcessSchedule.Build(process, r => catalog.ResolveRef(r) is { } target
+                    ? new RefLink(target.Label, Url.ReferenceHref(target)) : null);
         return Page();
     }
 

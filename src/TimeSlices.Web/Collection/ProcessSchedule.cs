@@ -18,7 +18,11 @@ public static class ProcessSchedule
     /// <summary>Промежутки длиннее этого получают подпись «прошло …».</summary>
     public static readonly TimeSpan LabelThreshold = TimeSpan.FromMinutes(1);
 
-    public static List<ProcessStep> Build(Process process)
+    /// <param name="refLink">
+    /// Ссылка на справку из стоп-кадра (detail.refs) → подпись и адрес; адрес строит страница. Без него
+    /// (и для ссылки, которую он не разобрал) ссылок в расписании нет.
+    /// </param>
+    public static List<ProcessStep> Build(Process process, Func<string, RefLink?>? refLink = null)
     {
         var frames = process.Frames.OrderBy(f => f.Order).ToList();
         var steps = new List<ProcessStep>(frames.Count);
@@ -45,7 +49,7 @@ public static class ProcessSchedule
                 // У последнего кадра нет следующего — ждать нечего.
                 DelayMs: i + 1 < frames.Count ? DelayFor(gap) : 0,
                 GapLabel: gap is { } g && g > LabelThreshold ? GapLabel(g) : null,
-                Detail: frame.Stop && frame.Detail is { } d ? StopDetail(d) : null));
+                Detail: frame.Stop && frame.Detail is { } d ? StopDetail(d, refLink) : null));
         }
         return steps;
     }
@@ -87,10 +91,12 @@ public static class ProcessSchedule
         return from >= 1 && to >= from ? (from, to) : null;
     }
 
-    private static StopDetail StopDetail(FrameDetail d)
+    private static StopDetail StopDetail(FrameDetail d, Func<string, RefLink?>? refLink)
     {
         var range = ParseLines(d.Lines);
-        return new StopDetail(d.CodeFile, d.Lines, range?.From, range?.To, DraftMark.StripOrNull(d.Explanation));
+        List<RefLink> refs = refLink is null ? [] : d.Refs.Select(refLink).OfType<RefLink>().ToList();
+        return new StopDetail(d.CodeFile, d.Lines, range?.From, range?.To, DraftMark.StripOrNull(d.Explanation),
+            refs.Count > 0 ? refs : null);
     }
 
     // RoundtripKind: время с Z или смещением не переводится в часовой пояс сервера (сейчас все at — без зоны).
@@ -116,5 +122,10 @@ public sealed record ProcessStep(
     int Order, string? At, string? AtDisplay, string Text, string? DurationNote, bool Draft, bool Stop,
     double? GapSeconds, int DelayMs, string? GapLabel, StopDetail? Detail);
 
-/// <summary>Что показать на стоп-кадре: пояснение и строки файла кода для показа.</summary>
-public sealed record StopDetail(string? CodeFile, string? Lines, int? LineFrom, int? LineTo, string? Explanation);
+/// <summary>Что показать на стоп-кадре: пояснение, строки файла кода для показа и ссылки на справку.</summary>
+/// <param name="Refs">Строка «Справка: …» под пояснением (ADR 0013, п. 7); null — ссылок нет.</param>
+public sealed record StopDetail(
+    string? CodeFile, string? Lines, int? LineFrom, int? LineTo, string? Explanation, IReadOnlyList<RefLink>? Refs = null);
+
+/// <summary>Ссылка на справку: подпись («статья» или «статья: раздел») и адрес страницы статьи.</summary>
+public sealed record RefLink(string Label, string Href);

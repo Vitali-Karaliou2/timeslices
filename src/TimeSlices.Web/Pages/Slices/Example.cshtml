@@ -88,6 +88,7 @@
             <p class="player-status" aria-live="polite"></p>
             <div class="player-stop" hidden>
                 <p class="player-stop-explanation" id="stop-explanation-@pr.Id"></p>
+                <p class="player-stop-refs refs" hidden></p>
                 <p class="player-stop-file"></p>
                 <pre class="code player-stop-code"></pre>
                 <button type="button" data-action="continue" aria-describedby="stop-explanation-@pr.Id">Дальше</button>
@@ -118,6 +119,16 @@
                                 }
                                 @* Пояснение в списке — только без JS: с проигрывателем оно показывается один раз, в панели стоп-кадра. *@
                                 @if (d.Explanation is { } explanation) { <span class="frame-explanation">— @explanation</span> }
+                                @* Ссылки на справку — так же: без JS в списке, с проигрывателем — в панели стоп-кадра. *@
+                                @if (d.Refs is { } refs)
+                                {
+                                    <span class="frame-refs">Справка:
+                                        @for (var r = 0; r < refs.Count; r++)
+                                        {
+                                            <a href="@refs[r].Href" target="_blank" rel="noopener">@refs[r].Label</a>@(r + 1 < refs.Count ? ", " : "")
+                                        }
+                                    </span>
+                                }
                             </div>
                         }
                     }

@@ -32,7 +32,10 @@ pre.code .line-hl { background: #fff1a8; }
 ol.frames li { padding: .1rem .25rem; }
 ol.frames li.frame-current { background: #e8f0ff; outline: 1px solid #9ab; }
 /* С проигрывателем пояснение стоп-кадра показывается только в панели; без JS — в списке кадров. */
-.process.player-on .frame-explanation { display: none; }
+.process.player-on .frame-explanation, .process.player-on .frame-refs { display: none; }
+.frame-refs { display: block; }
+.refs { font-size: .95em; }
+.as-of { font-size: .75em; font-weight: normal; color: #555; }
 /* Значок вместо префикса «ЧЕРНОВИК:» (Collection/DraftMark). */
 .draft-badge { font-size: .75em; font-weight: normal; color: #8a5a00; border: 1px solid #d9b26a; border-radius: .25em; padding: 0 .35em; vertical-align: .1em; }
 .visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }

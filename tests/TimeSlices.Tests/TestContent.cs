@@ -99,6 +99,35 @@ public sealed class TestContent : IDisposable
         return this;
     }
 
+    /// <summary>Справочная статья reference/&lt;id&gt;/article.json с разделами данных id.</summary>
+    public TestContent Article(string id, params string[] sectionIds)
+    {
+        var dir = Path.Combine(Root, "reference", id);
+        Directory.CreateDirectory(dir);
+        var article = new
+        {
+            id,
+            title = id,
+            summary = "test",
+            sections = sectionIds.Select(s => new { id = s, heading = s, asOf = (int?)null, paragraphs = new[] { "test" } }),
+            see = Array.Empty<string>(),
+            sources = Array.Empty<object>(),
+            status = "draft",
+        };
+        File.WriteAllText(Path.Combine(dir, "article.json"), JsonSerializer.Serialize(article));
+        return this;
+    }
+
+    /// <summary>Ссылки на справку в slice.json среза (поле refs).</summary>
+    public TestContent SliceRefs(string sliceId, params string[] refs)
+    {
+        var file = Path.Combine(Root, "slices", sliceId, "slice.json");
+        var slice = System.Text.Json.Nodes.JsonNode.Parse(File.ReadAllText(file))!;
+        slice["refs"] = new System.Text.Json.Nodes.JsonArray(refs.Select(r => (System.Text.Json.Nodes.JsonNode?)r).ToArray());
+        File.WriteAllText(file, slice.ToJsonString());
+        return this;
+    }
+
     public ContentCatalog Load() => ContentLoader.Load(Root);
 
     public void Dispose()

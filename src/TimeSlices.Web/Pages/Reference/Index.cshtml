@@ -1,0 +1,24 @@
+@page "/reference"
+@model TimeSlices.Web.Pages.Reference.IndexModel
+@{
+    ViewData["Title"] = "Справка";
+}
+
+<h1>Справка</h1>
+@if (!Model.Catalog.Articles.Any())
+{
+    <p>Статей пока нет.</p>
+}
+<ul class="articles">
+    @foreach (var article in Model.Catalog.ArticlesByTitle)
+    {
+        <li>
+            <a asp-page="/Reference/Article" asp-route-id="@article.Id">@DraftMark.Strip(article.Title)</a>
+            @if (article.Status != "approved")
+            {
+                <span class="draft">· @Labels.SliceStatusMark(article.Status)</span>
+            }
+            — @DraftMark.BadgeFor(article.Summary)@DraftMark.Strip(article.Summary)
+        </li>
+    }
+</ul>

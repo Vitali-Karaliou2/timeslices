@@ -72,12 +72,15 @@ public static class ContentLoader
             foreach (var impl in example.Implementations.Where(i => !slices.ContainsKey(i.Slice ?? "")))
                 problems.Add($"пример '{example.Id}': срез реализации '{impl.Id}' — '{impl.Slice}' — не найден");
 
+        var articles = LoadArticles(root, problems);
+        CheckReferenceLinks(root, slices, examples, articles, problems);
+
         var order = problems.Count == 0 ? TopologicalOrder(slices, problems) : [];
 
         if (problems.Count > 0)
             throw new ContentLoadException(problems);
 
-        return new ContentCatalog(root, tracks, slices, examples, questions, order);
+        return new ContentCatalog(root, tracks, slices, examples, questions, order, articles);
     }
 
     private static void LoadExamples(string root, string sliceDir, Dictionary<string, Example> examples, List<string> problems)
@@ -132,6 +135,62 @@ public static class ContentLoader
                 }
             }
         }
+    }
+
+    /// <summary>
+    /// Справка: Content/reference/&lt;article-id&gt;/article.json (ADR 0013). Поля подробно проверяет
+    /// validate_manifest.py; здесь — id статьи и разделов, на которые опираются ссылки, и список «См. также».
+    /// </summary>
+    private static Dictionary<string, Article> LoadArticles(string root, List<string> problems)
+    {
+        var articles = new Dictionary<string, Article>(StringComparer.Ordinal);
+        var referenceDir = Path.Combine(root, "reference");
+        if (!Directory.Exists(referenceDir))
+            return articles;
+
+        foreach (var dir in Directory.GetDirectories(referenceDir).OrderBy(d => d, StringComparer.Ordinal))
+        {
+            var file = Path.Combine(dir, "article.json");
+            if (!File.Exists(file))
+            {
+                problems.Add($"{Rel(root, dir)}: нет article.json");
+                continue;
+            }
+            var article = ReadJson<Article>(file, problems);
+            if (article is null)
+                continue;
+            if (article.Id != Path.GetFileName(dir))
+                problems.Add($"{Rel(root, file)}: id '{article.Id}' не совпадает с именем папки");
+            if (!articles.TryAdd(article.Id, article))
+                problems.Add($"{Rel(root, file)}: статья '{article.Id}' объявлена дважды");
+            var sectionIds = new HashSet<string>(StringComparer.Ordinal);
+            foreach (var section in article.Sections.Where(s => !sectionIds.Add(s.Id)))
+                problems.Add($"{Rel(root, file)}: раздел '{section.Id}' объявлен дважды");
+        }
+
+        foreach (var article in articles.Values)
+            foreach (var see in article.See.Where(s => !articles.ContainsKey(s)))
+                problems.Add($"reference/{article.Id}/article.json: в «См. также» статья '{see}' не найдена");
+        return articles;
+    }
+
+    /// <summary>Ссылки на справку из срезов (refs) и стоп-кадров (detail.refs) ведут на существующие статьи и разделы.</summary>
+    private static void CheckReferenceLinks(
+        string root, Dictionary<string, Slice> slices, Dictionary<string, Example> examples,
+        Dictionary<string, Article> articles, List<string> problems)
+    {
+        foreach (var slice in slices.Values)
+            foreach (var r in slice.Refs)
+                if (ContentCatalog.ResolveRef(articles, r, out var why) is null)
+                    problems.Add($"slices/{slice.Id}/slice.json: ссылка на справку '{r}' — {why}");
+
+        foreach (var example in examples.Values)
+            foreach (var impl in example.Implementations)
+                foreach (var pr in impl.Processes.Where(p => p.Process is not null))
+                    foreach (var frame in pr.Process!.Frames.Where(f => f.Detail is not null))
+                        foreach (var r in frame.Detail!.Refs)
+                            if (ContentCatalog.ResolveRef(articles, r, out var why) is null)
+                                problems.Add($"{Rel(root, Path.Combine(impl.Directory, pr.File))}: кадр {frame.Order}: ссылка на справку '{r}' — {why}");
     }
 
     /// <summary>
