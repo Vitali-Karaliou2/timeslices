@@ -21,7 +21,7 @@
 - Тесты: `dotnet test TimeSlices.sln`
 - Запуск: `dotnet run --project src/TimeSlices.Web` (http://localhost:5000)
 - Миграции: `dotnet ef migrations add <Name> --project src/TimeSlices.Web`
-- Проверка манифеста примера: `python3 scripts/validate_manifest.py <path/to/manifest.json>`
+- Проверка манифеста примера: `python3 scripts/validate_manifest.py <path/to/manifest.json>` (на Windows — `python`)
 - В облачной сессии .NET ставится хуком SessionStart (scripts/install_dotnet.sh); если `dotnet`
   не найден — выполни `bash scripts/install_dotnet.sh` и добавь `$HOME/.dotnet` в PATH.
 

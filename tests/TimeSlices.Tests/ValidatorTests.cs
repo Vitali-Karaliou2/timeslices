@@ -46,12 +46,14 @@ public sealed class ValidatorTests : IDisposable
     private static (int, string) Validate(string path)
     {
         var script = Path.Combine(TestContent.RealContentRoot(), "..", "..", "..", "scripts", "validate_manifest.py");
-        var start = new ProcessStartInfo("python3") { RedirectStandardOutput = true, RedirectStandardError = true };
+        // Установщик с python.org на Windows даёт команду python, но не python3 (а python3 там — заглушка Microsoft Store).
+        var python = OperatingSystem.IsWindows() ? "python" : "python3";
+        var start = new ProcessStartInfo(python) { RedirectStandardOutput = true, RedirectStandardError = true };
         start.ArgumentList.Add(script);
         start.ArgumentList.Add(path);
         Process process;
         try { process = Process.Start(start)!; }
-        catch (System.ComponentModel.Win32Exception e) { throw new InvalidOperationException("для теста валидатора нужен python3 в PATH", e); }
+        catch (System.ComponentModel.Win32Exception e) { throw new InvalidOperationException($"для теста валидатора нужен {python} (Python 3) в PATH", e); }
         using var _ = process;
         var output = process.StandardOutput.ReadToEnd() + process.StandardError.ReadToEnd();
         process.WaitForExit();
