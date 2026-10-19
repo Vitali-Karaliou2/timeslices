@@ -15,6 +15,7 @@ An educational app where the history of software development is shown as a colle
    (запасной путь — пакет `dotnet-sdk-10.0` из Ubuntu).
 2. `dotnet test TimeSlices.sln`, затем `dotnet run --project src/TimeSlices.Web` → http://localhost:5000.
    На Windows то же двойным щелчком: `bat\run-tests.bat` (все тесты) и `bat\run-app.bat` (приложение, браузер откроется сам).
+   База данных (SQLite, `app.db`) — только просмотр: `bat\db-show.bat` (таблицы), `bat\db-show.bat <таблица> [N]`, `bat\db-show.bat --sql "select ..."`.
    БД `app.db` создаётся миграциями при старте рядом с проектом (в .gitignore).
 3. Dev-пользователи (из `src/TimeSlices.Web/appsettings.Development.json`):
    `learner@timeslices.local` / `Learner-dev-1`, `examiner@timeslices.local` / `Examiner-dev-1`,
