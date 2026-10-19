@@ -48,7 +48,14 @@ public sealed class ValidatorTests : IDisposable
         var script = Path.Combine(TestContent.RealContentRoot(), "..", "..", "..", "scripts", "validate_manifest.py");
         // Установщик с python.org на Windows даёт команду python, но не python3 (а python3 там — заглушка Microsoft Store).
         var python = OperatingSystem.IsWindows() ? "python" : "python3";
-        var start = new ProcessStartInfo(python) { RedirectStandardOutput = true, RedirectStandardError = true };
+        var start = new ProcessStartInfo(python)
+        {
+            RedirectStandardOutput = true, RedirectStandardError = true,
+            StandardOutputEncoding = System.Text.Encoding.UTF8, StandardErrorEncoding = System.Text.Encoding.UTF8,
+        };
+        // На Windows перенаправленный вывод Python идёт в кодировке системы, и русские сообщения валидатора
+        // падают с UnicodeEncodeError; UTF-8 задаётся явно.
+        start.Environment["PYTHONIOENCODING"] = "utf-8";
         start.ArgumentList.Add(script);
         start.ArgumentList.Add(path);
         Process process;
