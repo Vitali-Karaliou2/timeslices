@@ -37,7 +37,8 @@ public class IndexModel(ContentCatalog catalog, SliceProgressService progress, U
         {
             Check(await users.RemoveFromRolesAsync(user, current));
             Check(await users.AddToRoleAsync(user, role));
-            // Роли берутся из cookie входа: старая сессия этого пользователя должна обновиться.
+            // Роли берутся из cookie входа. Новый штамп заставит открытую сессию пользователя перечитать роли
+            // при ближайшей проверке штампа (по умолчанию — раз в 30 минут), до тех пор действуют старые.
             Check(await users.UpdateSecurityStampAsync(user));
         }
         return RedirectToPage();

@@ -63,7 +63,10 @@ public class RegisterModel(
         }
         var role = await users.AddToRoleAsync(user, Roles.Learner);
         if (!role.Succeeded)
+        {
+            await users.DeleteAsync(user); // пользователь без роли не остаётся
             throw new InvalidOperationException("Не удалось назначить роль Learner: " + string.Join("; ", role.Errors.Select(e => e.Description)));
+        }
 
         if (users.Options.SignIn.RequireConfirmedAccount)
         {

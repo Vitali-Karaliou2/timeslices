@@ -11,8 +11,10 @@ namespace TimeSlices.Web.Assessment;
 public enum SelfCheckOutcome
 {
     Ok,
-    /// <summary>Нет попытки, вопроса или срез закрыт для сдачи.</summary>
+    /// <summary>Нет попытки или вопроса.</summary>
     NotFound,
+    /// <summary>Срез закрыт для сдачи: не «в процессе» и не «пройден», или у него нет вопросов.</summary>
+    Forbidden,
     /// <summary>Действие не подходит к текущему шагу: ответ уже сохранён, попытка уже отправлена и т. п.</summary>
     Conflict,
     /// <summary>Пустой или слишком длинный текст, подделанная отметка показа, нет комментария при возврате.</summary>
@@ -84,7 +86,7 @@ public class SelfCheckService(
     public async Task<SelfCheckOutcome> StartAsync(string userId, ThematicSliceKey key)
     {
         if (!await CanCheckAsync(userId, key))
-            return SelfCheckOutcome.NotFound;
+            return SelfCheckOutcome.Forbidden;
         var latest = await LatestAsync(userId, key);
         if (latest is not null && latest.Status != AttemptStatus.Returned)
             return SelfCheckOutcome.Conflict;
@@ -240,7 +242,7 @@ public class SelfCheckService(
     private async Task<(SelfCheckOutcome, Attempt?)> OpenAttemptAsync(string userId, ThematicSliceKey key)
     {
         if (!await CanCheckAsync(userId, key))
-            return (SelfCheckOutcome.NotFound, null);
+            return (SelfCheckOutcome.Forbidden, null);
         var attempt = await LatestAsync(userId, key);
         if (attempt is null)
             return (SelfCheckOutcome.NotFound, null);

@@ -62,7 +62,7 @@ public class SelfCheckTests : IDisposable
     [Fact]
     public async Task Check_OnlyForSliceInProgressOrDone_WithQuestions()
     {
-        Assert.Equal(SelfCheckOutcome.NotFound, await S.StartAsync(User, A)); // «доступен», ещё не открыт
+        Assert.Equal(SelfCheckOutcome.Forbidden, await S.StartAsync(User, A)); // «доступен», ещё не открыт
         await _fx.Service.MarkDoneAsync(User, A);
         Assert.False(await S.CanCheckAsync(User, new ThematicSliceKey("b", "t"))); // вопросов нет
         Assert.True(await S.CanCheckAsync(User, A));
@@ -151,6 +151,26 @@ public class SelfCheckTests : IDisposable
         Assert.Equal(AttemptStatus.Confirmed, (await Latest()).Status);
         Assert.Equal(SelfCheckOutcome.Conflict, await S.StartAsync(User, A)); // подтверждённую не пересдают
         Assert.Equal(2, await _fx.Db.Attempts.CountAsync());
+    }
+
+    [Fact]
+    public async Task ParallelStartAndDecide_OnlyOneWins()
+    {
+        // Отдельные контексты на одной БД — как параллельные запросы.
+        await _fx.Service.OpenAsync(User, A);
+        var starts = await Task.WhenAll(Enumerable.Range(0, 4).Select(_ => _fx.WithNewContext(s => s.StartAsync(User, A))));
+        Assert.Single(starts, SelfCheckOutcome.Ok);
+        Assert.Equal(1, await _fx.Db.Attempts.CountAsync());
+
+        await CompleteQuestion("q1");
+        await CompleteQuestion("q2");
+        await S.SubmitAsync(User, A);
+        var id = (await Latest()).Id;
+        var decisions = await Task.WhenAll(
+            _fx.WithNewContext(s => s.ConfirmAsync(id, ProgressFixture.ExaminerId)),
+            _fx.WithNewContext(s => s.ReturnAsync(id, ProgressFixture.ExaminerId, "нет")));
+        Assert.Single(decisions, SelfCheckOutcome.Ok);
+        Assert.Single(decisions, SelfCheckOutcome.Conflict);
     }
 
     [Fact]

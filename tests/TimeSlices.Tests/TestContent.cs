@@ -133,12 +133,23 @@ public sealed class ProgressFixture : IDisposable
         Db.Users.Add(new ApplicationUser { Id = UserId, UserName = UserId });
         Db.Users.Add(new ApplicationUser { Id = ExaminerId, UserName = ExaminerId });
         Db.SaveChanges();
+        _catalog = catalog;
         Service = new SliceProgressService(Db, catalog, TimeProvider.System);
-        SelfCheck = new SelfCheckService(Db, catalog, Service,
-            new Microsoft.AspNetCore.DataProtection.EphemeralDataProtectionProvider(), TimeProvider.System);
+        SelfCheck = new SelfCheckService(Db, catalog, Service, _protection, TimeProvider.System);
     }
 
     public SelfCheckService SelfCheck { get; }
+
+    private readonly ContentCatalog _catalog = null!;
+    private readonly Microsoft.AspNetCore.DataProtection.IDataProtectionProvider _protection =
+        new Microsoft.AspNetCore.DataProtection.EphemeralDataProtectionProvider();
+
+    /// <summary>Действие в своём контексте БД (как отдельный HTTP-запрос) — для проверок гонок.</summary>
+    public async Task<T> WithNewContext<T>(Func<SelfCheckService, Task<T>> action)
+    {
+        await using var db = new ApplicationDbContext(new DbContextOptionsBuilder<ApplicationDbContext>().UseSqlite(_connection).Options);
+        return await action(new SelfCheckService(db, _catalog, new SliceProgressService(db, _catalog, TimeProvider.System), _protection, TimeProvider.System));
+    }
 
     public ApplicationDbContext Db { get; }
     public SliceProgressService Service { get; }

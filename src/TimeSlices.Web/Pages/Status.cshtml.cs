@@ -1,10 +1,13 @@
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 
 namespace TimeSlices.Web.Pages;
 
 /// <summary>Страница для ответов с кодом ошибки без тела (UseStatusCodePagesWithReExecute). Код ответа не меняется.</summary>
+/// При повторном выполнении метод запроса сохраняется, поэтому есть и OnPost; токен формы проверил исходный запрос.
 [AllowAnonymous]
+[IgnoreAntiforgeryToken]
 public class StatusModel : PageModel
 {
     public string Title { get; private set; } = "";
@@ -20,4 +23,6 @@ public class StatusModel : PageModel
             _ => $"Ошибка {code}",
         };
     }
+
+    public void OnPost(int code) => OnGet(code);
 }

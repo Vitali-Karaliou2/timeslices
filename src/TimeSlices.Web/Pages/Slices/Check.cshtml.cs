@@ -59,6 +59,9 @@ public class CheckModel(ContentCatalog catalog, SliceProgressService progress, S
             return page;
         if (Attempt is not null && Selected?.Id == questionId && selfCheck.IsValidShownAt(shownAt, Attempt, questionId))
             ShownAtToken = shownAt;
+        else if (!string.IsNullOrWhiteSpace(text))
+            // Отметка показа не прочиталась (например, сменились ключи): текст возвращается в форму с новой отметкой.
+            return Invalid(text, "Страница устарела — отправьте ответ ещё раз.");
         return Invalid(text);
     }
 
@@ -82,16 +85,17 @@ public class CheckModel(ContentCatalog catalog, SliceProgressService progress, S
     private IActionResult Result(SelfCheckOutcome outcome, string id, string? questionId) => outcome switch
     {
         SelfCheckOutcome.NotFound => NotFound(),
+        SelfCheckOutcome.Forbidden => StatusCode(StatusCodes.Status403Forbidden),
         SelfCheckOutcome.Invalid => BadRequest(),
         // Ok и Conflict (двойное нажатие, устаревшая вкладка) — к текущему состоянию попытки.
         _ => RedirectToPage("/Slices/Check", new { id, track = Key.TrackId, q = questionId }),
     };
 
-    private IActionResult Invalid(string? text)
+    private IActionResult Invalid(string? text, string? error = null)
     {
-        Error = text?.Length > SelfCheckService.MaxAnswerLength
+        Error = error ?? (text?.Length > SelfCheckService.MaxAnswerLength
             ? $"Ответ длиннее {SelfCheckService.MaxAnswerLength} символов."
-            : "Напишите ответ своими словами — пустой ответ не сохраняется.";
+            : "Напишите ответ своими словами — пустой ответ не сохраняется.");
         DraftText = text;
         Response.StatusCode = StatusCodes.Status400BadRequest;
         return Page();

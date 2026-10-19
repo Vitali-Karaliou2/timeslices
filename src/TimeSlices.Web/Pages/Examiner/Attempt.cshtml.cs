@@ -35,7 +35,9 @@ public class AttemptModel(ContentCatalog catalog, SelfCheckService selfCheck, Us
             return Result(outcome, attemptId);
         if (!await LoadAsync(attemptId))
             return NotFound();
-        Error = "При возврате нужен комментарий для обучаемого.";
+        Error = comment?.Trim().Length > SelfCheckService.MaxCommentLength
+            ? $"Комментарий длиннее {SelfCheckService.MaxCommentLength} символов."
+            : "При возврате нужен комментарий для обучаемого.";
         Response.StatusCode = StatusCodes.Status400BadRequest;
         return Page();
     }

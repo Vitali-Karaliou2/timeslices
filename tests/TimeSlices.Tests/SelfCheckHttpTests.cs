@@ -253,3 +253,45 @@ public class RegistrationTests
         Assert.Equal([Roles.Learner], await RolesOf(factory, email));
     }
 }
+
+/// <summary>Коды ошибок POST-обработчиков доходят до клиента как есть (страница Status при повторном выполнении).</summary>
+public class StatusCodeTests(ShellFactory factory) : IClassFixture<ShellFactory>
+{
+    [Fact]
+    public async Task Post_NotFoundAndBadRequest_KeepTheirCodes()
+    {
+        var (learner, _) = await factory.SignedInAsync(Roles.Learner);
+        var token = ShellFactory.AntiforgeryToken(await learner.GetStringAsync("/slices/net-before-web-1992"));
+        Assert.NotEmpty(token);
+        FormUrlEncodedContent Form(params (string, string)[] f) =>
+            new(f.Select(x => KeyValuePair.Create(x.Item1, x.Item2)).Append(KeyValuePair.Create("__RequestVerificationToken", token)));
+
+        var missing = await learner.PostAsync("/slices/no-such-slice/check?handler=Start", Form());
+        var locked = await learner.PostAsync("/slices/static-page-1995/check?handler=Start", Form());
+        token = "forged";
+        var badToken = await learner.PostAsync("/slices/net-before-web-1992/check?handler=Start", Form());
+
+        Assert.Equal(HttpStatusCode.NotFound, missing.StatusCode);
+        Assert.Contains("Страница не найдена", await missing.Content.ReadAsStringAsync());
+        Assert.Equal(HttpStatusCode.Forbidden, locked.StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, badToken.StatusCode);
+        Assert.Contains("Неверный запрос", await badToken.Content.ReadAsStringAsync());
+    }
+
+    [Fact]
+    public async Task Admin_CannotChangeOwnRole()
+    {
+        var (admin, email) = await factory.SignedInAsync(Roles.Admin);
+        string id;
+        using (var scope = factory.Services.CreateScope())
+            id = (await scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>().FindByNameAsync(email))!.Id;
+        var token = ShellFactory.AntiforgeryToken(await admin.GetStringAsync("/admin"));
+
+        var response = await admin.PostAsync("/admin?handler=SetRole", new FormUrlEncodedContent(new Dictionary<string, string>
+        {
+            ["userId"] = id, ["role"] = Roles.Learner, ["__RequestVerificationToken"] = token,
+        }));
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+}
