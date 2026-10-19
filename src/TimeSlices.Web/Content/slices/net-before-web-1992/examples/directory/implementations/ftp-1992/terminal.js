@@ -5,7 +5,7 @@
 (function () {
   var lines = document.getElementById('transcript').textContent.replace(/^\n/, '').replace(/\n$/, '').split('\n');
   var staff = document.getElementById('staff').textContent.replace(/^\n/, '').replace(/\n$/, '');
-  var stepEnds = [2, 9, 12, 20, 28, 31, 32];   // последний шаг — вызов редактора, затем файл
+  var stepEnds = [1, 2, 9, 12, 20, 28, 31, 32];   // последний шаг — вызов редактора, затем файл
   var screen = document.getElementById('screen');
   var step = 0;
 
@@ -14,18 +14,35 @@
   function show() {
     screen.textContent = '';
     if (step <= stepEnds.length) {
-      screen.textContent = step === 0 ? '% ' : lines.slice(0, stepEnds[step - 1]).join('\n') + '\n';
+      if (step === 0) { screen.textContent = '% '; }
+      else { lines.slice(0, stepEnds[step - 1]).forEach(showLine); }
     } else {
       // Файл в редакторе: поиск фамилии — забота пользователя, а не службы.
       staff.split('\n').forEach(function (line) {
         var span = document.createElement('span');
         span.textContent = line + '\n';
         if (line.indexOf('Иванов Иван') === 0) span.className = 'hit';
+        if (line.charAt(0) === '/') span.className = 'typed';   // команда поиска в редакторе набрана пользователем
         screen.appendChild(span);
       });
     }
     document.getElementById('step').textContent = step;
     document.getElementById('next').disabled = step > stepEnds.length;
+  }
+
+  // Набранное пользователем выделяется: приглашение (%, ftp>, Name (...):) печатает программа,
+  // остальное в такой строке набрано на клавиатуре.
+  var promptRe = /^(% |ftp> |Name \([^)]*\): )(.*)$/;
+
+  function showLine(line) {
+    var m = promptRe.exec(line);
+    if (!m) { screen.appendChild(document.createTextNode(line + '\n')); return; }
+    screen.appendChild(document.createTextNode(m[1]));
+    var typed = document.createElement('span');
+    typed.className = 'typed';
+    typed.textContent = m[2];
+    screen.appendChild(typed);
+    screen.appendChild(document.createTextNode('\n'));
   }
 
   function next() {

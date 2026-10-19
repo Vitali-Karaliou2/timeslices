@@ -36,17 +36,7 @@
     return;
 }
 
-<h2>Вводимое решение</h2>
-<p>@DraftMark.BadgeFor(slice.Introduces)@DraftMark.Strip(slice.Introduces)</p>
-
-<h2>Актуальность</h2>
-<p>@Labels.Relevance(slice.Relevance)</p>
-@if (DraftMark.StripOrNull(slice.RelevanceNote) is { } relevanceNote)
-{
-    <p class="relevance-note">@DraftMark.BadgeFor(slice.RelevanceNote)@relevanceNote</p>
-}
-<p>@DraftMark.BadgeFor(slice.WhyNeededToReviewModelCode)<strong>Зачем это, если код пишет модель:</strong> @DraftMark.Strip(slice.WhyNeededToReviewModelCode)</p>
-
+@* Порядок разделов — «до → решение → после», затем актуальность (решение автора 19.10.2026). *@
 <h2>Связь с предыдущими</h2>
 @if (slice.Prerequisites.Count > 0)
 {
@@ -62,6 +52,9 @@
 }
 <p>@DraftMark.BadgeFor(slice.LinkBack)@DraftMark.Strip(slice.LinkBack)</p>
 
+<h2>Вводимое решение</h2>
+<p>@DraftMark.BadgeFor(slice.Introduces)@DraftMark.Strip(slice.Introduces)</p>
+
 <h2>Дальше</h2>
 @{ var successors = Model.Catalog.SuccessorsOf(Model.Key); }
 @if (successors.Count > 0)
@@ -74,6 +67,14 @@
     </ul>
 }
 <p>@DraftMark.BadgeFor(slice.LinkForward)@DraftMark.Strip(slice.LinkForward)</p>
+
+<h2>Актуальность</h2>
+<p>@Labels.Relevance(slice.Relevance)</p>
+@if (DraftMark.StripOrNull(slice.RelevanceNote) is { } relevanceNote)
+{
+    <p class="relevance-note">@DraftMark.BadgeFor(slice.RelevanceNote)@relevanceNote</p>
+}
+<p>@DraftMark.BadgeFor(slice.WhyNeededToReviewModelCode)<strong>Зачем это, если код пишет модель:</strong> @DraftMark.Strip(slice.WhyNeededToReviewModelCode)</p>
 
 <h2>Примеры</h2>
 @{ var examples = Model.Catalog.ExamplesOf(slice).ToList(); }

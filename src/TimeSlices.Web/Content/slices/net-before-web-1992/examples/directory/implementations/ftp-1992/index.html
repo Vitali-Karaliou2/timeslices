@@ -9,6 +9,7 @@
   body { margin: 0; background: #111; color: #c8f7c8; font: 15px/1.35 monospace; }
   #screen { margin: 0; padding: 12px 16px; white-space: pre-wrap; min-height: 22em; }
   #screen .hit { background: #c8f7c8; color: #111; }
+  #screen .typed { color: #fff; font-weight: bold; }
   #bar { padding: 8px 16px; background: #222; color: #ddd; font: 14px sans-serif; }
   button { font: inherit; }
 </style>
@@ -17,7 +18,7 @@
 <pre id="screen"></pre>
 <div id="bar">
   <button id="next" type="button">Следующая команда</button>
-  <span id="hint">или Enter. Шаг <span id="step">0</span> из <span id="total"></span>.</span>
+  <span id="hint">или Enter. Набранное пользователем — <b style="color:#fff">ярким</b>. Шаг <span id="step">0</span> из <span id="total"></span>.</span>
 </div>
 <script type="text/plain" id="transcript" data-code="code/session.txt">% ftp -d ftp.phys.example.edu
 Connected to ftp.phys.example.edu.
@@ -67,6 +68,24 @@ ftp> quit
 ~
 "staff.txt" 10 lines
 /Иванов
+</script>
+<!-- Письмо коллеги (стоп-кадр 1): терминал его не показывает, копия нужна для сверки с показом (ADR 0006). -->
+<script type="text/plain" id="letter" data-code="code/letter.txt">From: sidorova@phys.example.edu (Anna Sidorova)
+Date: Fri, 2 Oct 92 17:41:05 EDT
+To: smirnov@math.example.edu
+Subject: Re: telefon Ivanova
+
+Сергей Петрович,
+
+телефона Ивана Ивановича я на память не помню, но весь список
+сотрудников кафедры теперь лежит у нас на анонимном FTP:
+
+    ftp.phys.example.edu:/pub/staff/staff.txt
+
+Входите под именем anonymous, вместо пароля наберите свой адрес
+почты. Список обновляем раз в семестр; в том же каталоге есть README.
+
+А. Сидорова
 </script>
 <script src="terminal.js"></script>
 </body>
