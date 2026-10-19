@@ -36,3 +36,22 @@ ol.frames li.frame-current { background: #e8f0ff; outline: 1px solid #9ab; }
 /* Значок вместо префикса «ЧЕРНОВИК:» (Collection/DraftMark). */
 .draft-badge { font-size: .75em; font-weight: normal; color: #8a5a00; border: 1px solid #d9b26a; border-radius: .25em; padding: 0 .35em; vertical-align: .1em; }
 .visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+/* Контроль знаний (Pages/Slices/Check, Pages/Examiner). */
+.submission-Submitted { background: #e8f0ff; }
+.submission-Confirmed { background: #d6efd6; }
+.submission-Returned { background: #fde4e1; }
+.examiner-comment { border-left: 4px solid #c44; padding: .25rem .75rem; }
+nav.questions ol { display: flex; flex-wrap: wrap; gap: .25rem 1rem; padding-left: 1.2rem; }
+article.question { border-top: 1px solid #ddd; margin-top: 1rem; }
+.answer-text { white-space: pre-wrap; background: #f6f6f6; padding: .5rem; }
+.reference { border-left: 4px solid #6a9; padding: .25rem .75rem; }
+form[data-signs] label { display: block; font-weight: bold; margin: .5rem 0 .25rem; }
+form[data-signs] textarea { width: 100%; box-sizing: border-box; font: inherit; }
+.error { color: #a00; }
+table.attempts td, table.attempts th { padding: .2rem .6rem; border-bottom: 1px solid #ddd; text-align: left; vertical-align: top; }
+dl.signs { display: grid; grid-template-columns: max-content auto; gap: .1rem 1rem; }
+dl.signs dt { color: #555; }
+dl.signs dd { margin: 0; }
+form.account label, section form label { display: block; margin: .5rem 0 .25rem; }
+section form textarea { width: 100%; box-sizing: border-box; font: inherit; }
+form.role { display: flex; gap: .25rem; margin: 0; }

@@ -1,13 +1,14 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
+using TimeSlices.Web.Assessment;
 using TimeSlices.Web.Collection;
 using TimeSlices.Web.Data;
 using TimeSlices.Web.Progress;
 
 namespace TimeSlices.Web.Pages.Slices;
 
-public class SliceModel(ContentCatalog catalog, SliceProgressService progress, UserManager<ApplicationUser> users) : PageModel
+public class SliceModel(ContentCatalog catalog, SliceProgressService progress, SelfCheckService selfCheck, UserManager<ApplicationUser> users) : PageModel
 {
     public ContentCatalog Catalog => catalog;
     public Slice Slice { get; private set; } = null!;
@@ -20,6 +21,11 @@ public class SliceModel(ContentCatalog catalog, SliceProgressService progress, U
 
     /// <summary>Несколько вариантов «Далее» — пользователь выбирает (null — выбор не показывается).</summary>
     public IReadOnlyList<ThematicSliceKey>? NextChoices { get; private set; }
+
+    /// <summary>Последняя попытка сдачи (ADR 0011, п. 4) или null.</summary>
+    public Attempt? Attempt { get; private set; }
+
+    public bool HasQuestions => catalog.QuestionsOf(Slice.Id).Count > 0;
 
     private string UserId => users.GetUserId(User)!;
 
@@ -84,6 +90,7 @@ public class SliceModel(ContentCatalog catalog, SliceProgressService progress, U
         }
         if (Status.State == SliceState.Done)
             HasAdvanced = await progress.HasAdvancedAsync(UserId, Key);
+        Attempt = await selfCheck.LatestAsync(UserId, Key);
         return Page();
     }
 }

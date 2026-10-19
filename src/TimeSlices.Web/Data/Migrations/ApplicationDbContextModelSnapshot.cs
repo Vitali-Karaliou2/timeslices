@@ -149,6 +149,59 @@ namespace TimeSlices.Web.Data.Migrations
                     b.ToTable("AspNetUserTokens", (string)null);
                 });
 
+            modelBuilder.Entity("TimeSlices.Web.Data.Answer", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("ActiveMs")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("AnsweredAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("AttemptId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int?>("FollowUpActiveMs")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int?>("FollowUpPasteCount")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("FollowUpText")
+                        .HasMaxLength(10000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("PasteCount")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("QuestionId")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("SelfRating")
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("ShownAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Text")
+                        .IsRequired()
+                        .HasMaxLength(10000)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AttemptId", "QuestionId")
+                        .IsUnique();
+
+                    b.ToTable("Answers");
+                });
+
             modelBuilder.Entity("TimeSlices.Web.Data.ApplicationUser", b =>
                 {
                     b.Property<string>("Id")
@@ -214,6 +267,62 @@ namespace TimeSlices.Web.Data.Migrations
                         .HasDatabaseName("UserNameIndex");
 
                     b.ToTable("AspNetUsers", (string)null);
+                });
+
+            modelBuilder.Entity("TimeSlices.Web.Data.Attempt", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime?>("DecidedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ExaminerComment")
+                        .HasMaxLength(4000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ExaminerId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("SliceId")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("StartedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("SubmittedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("TrackId")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ExaminerId");
+
+                    b.HasIndex("Status", "SubmittedAt");
+
+                    b.HasIndex(new[] { "UserId", "SliceId", "TrackId" }, "IX_Attempts_Open")
+                        .IsUnique()
+                        .HasFilter("\"Status\" IN ('InProgress', 'Submitted')");
+
+                    b.HasIndex(new[] { "UserId", "SliceId", "TrackId" }, "IX_Attempts_UserId_SliceId_TrackId");
+
+                    b.ToTable("Attempts");
                 });
 
             modelBuilder.Entity("TimeSlices.Web.Data.UserSliceState", b =>
@@ -306,6 +415,29 @@ namespace TimeSlices.Web.Data.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("TimeSlices.Web.Data.Answer", b =>
+                {
+                    b.HasOne("TimeSlices.Web.Data.Attempt", null)
+                        .WithMany("Answers")
+                        .HasForeignKey("AttemptId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("TimeSlices.Web.Data.Attempt", b =>
+                {
+                    b.HasOne("TimeSlices.Web.Data.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("ExaminerId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("TimeSlices.Web.Data.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("TimeSlices.Web.Data.UserSliceState", b =>
                 {
                     b.HasOne("TimeSlices.Web.Data.ApplicationUser", null)
@@ -313,6 +445,11 @@ namespace TimeSlices.Web.Data.Migrations
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("TimeSlices.Web.Data.Attempt", b =>
+                {
+                    b.Navigation("Answers");
                 });
 #pragma warning restore 612, 618
         }

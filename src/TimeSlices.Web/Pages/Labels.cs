@@ -1,3 +1,5 @@
+using System.Globalization;
+using TimeSlices.Web.Collection;
 using TimeSlices.Web.Data;
 using TimeSlices.Web.Progress;
 
@@ -14,6 +16,38 @@ public static class Labels
         SliceState.Done => "Пройден",
         _ => status.State.ToString(),
     };
+
+    /// <summary>Состояние сдачи по последней попытке (ADR 0011, п. 4).</summary>
+    public static string Submission(AttemptStatus status) => status switch
+    {
+        AttemptStatus.InProgress => "в процессе сдачи",
+        AttemptStatus.Submitted => "ожидает подтверждения",
+        AttemptStatus.Confirmed => "подтверждён экзаменатором",
+        AttemptStatus.Returned => "возвращён",
+        _ => status.ToString(),
+    };
+
+    public static string Rating(SelfRating? rating) => rating switch
+    {
+        SelfRating.Match => "совпал",
+        SelfRating.Partial => "частично",
+        SelfRating.NoMatch => "не совпал",
+        null => "—",
+        _ => rating.ToString()!,
+    };
+
+    /// <summary>Длительность для экзаменатора: «48,2 с», «3 мин 05 с».</summary>
+    public static string Duration(TimeSpan d)
+    {
+        if (d < TimeSpan.Zero)
+            d = TimeSpan.Zero;
+        return d.TotalMinutes < 1
+            ? (d.TotalMilliseconds / 1000).ToString("0.0", CultureInfo.InvariantCulture).Replace('.', ',') + " с"
+            : $"{(int)d.TotalMinutes} мин {d.Seconds:00} с";
+    }
+
+    /// <summary>Дата и время в UTC — так они хранятся: «19 октября 2026, 14:05:09 UTC».</summary>
+    public static string When(DateTime? utc) => utc is { } t ? ProcessSchedule.FormatAt(t.AddTicks(-(t.Ticks % TimeSpan.TicksPerSecond))) + " UTC" : "—";
 
     public static string Relevance(string code) => code switch
     {

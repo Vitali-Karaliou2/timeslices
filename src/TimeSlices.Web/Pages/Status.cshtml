@@ -1,0 +1,8 @@
+@page "/Status/{code:int}"
+@model TimeSlices.Web.Pages.StatusModel
+@{
+    ViewData["Title"] = Model.Title;
+}
+
+<h1>@Model.Title</h1>
+<p><a asp-page="/Index">К трекам</a></p>

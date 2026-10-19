@@ -39,6 +39,7 @@ public static class ContentLoader
 
         var slices = new Dictionary<string, Slice>(StringComparer.Ordinal);
         var examples = new Dictionary<string, Example>(StringComparer.Ordinal);
+        var questions = new Dictionary<string, IReadOnlyList<Question>>(StringComparer.Ordinal);
         var slicesDir = Path.Combine(root, "slices");
         var sliceDirs = Directory.Exists(slicesDir)
             ? Directory.GetDirectories(slicesDir).OrderBy(d => d, StringComparer.Ordinal)
@@ -61,6 +62,8 @@ public static class ContentLoader
                 problems.Add($"{Rel(root, file)}: срез '{slice.Id}' объявлен дважды");
 
             LoadExamples(root, dir, examples, problems);
+            if (LoadQuestions(root, dir, problems) is { } q)
+                questions[slice.Id] = q;
         }
 
         foreach (var slice in slices.Values)
@@ -74,7 +77,7 @@ public static class ContentLoader
         if (problems.Count > 0)
             throw new ContentLoadException(problems);
 
-        return new ContentCatalog(root, tracks, slices, examples, order);
+        return new ContentCatalog(root, tracks, slices, examples, questions, order);
     }
 
     private static void LoadExamples(string root, string sliceDir, Dictionary<string, Example> examples, List<string> problems)
@@ -129,6 +132,29 @@ public static class ContentLoader
                 }
             }
         }
+    }
+
+    /// <summary>
+    /// questions.json среза (необязателен). Поля и минимум в пять вопросов проверяет validate_manifest.py;
+    /// здесь — только то, на что опираются ответы в БД: непустой и уникальный id вопроса.
+    /// </summary>
+    private static List<Question>? LoadQuestions(string root, string sliceDir, List<string> problems)
+    {
+        var file = Path.Combine(sliceDir, "questions.json");
+        if (!File.Exists(file))
+            return null;
+        var set = ReadJson<QuestionSet>(file, problems);
+        if (set is null)
+            return null;
+        var ids = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var q in set.Questions)
+        {
+            if (string.IsNullOrWhiteSpace(q.Id) || q.Id.Length > 100)
+                problems.Add($"{Rel(root, file)}: у вопроса пустой или слишком длинный id");
+            else if (!ids.Add(q.Id))
+                problems.Add($"{Rel(root, file)}: вопрос '{q.Id}' объявлен дважды");
+        }
+        return set.Questions;
     }
 
     private static void CheckReferences(

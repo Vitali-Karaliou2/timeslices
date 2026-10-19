@@ -21,7 +21,26 @@
         {
             <tr>
                 <td>@user.UserName</td>
-                <td>@string.Join(", ", roles)</td>
+                <td>
+                    @if (user.Id == Model.CurrentUserId)
+                    {
+                        @string.Join(", ", roles)
+                    }
+                    else
+                    {
+                        <form method="post" asp-page-handler="SetRole" class="role">
+                            <input type="hidden" name="userId" value="@user.Id" />
+                            <label class="visually-hidden" for="role-@user.Id">Роль @user.UserName</label>
+                            <select id="role-@user.Id" name="role">
+                                @foreach (var role in Roles.All)
+                                {
+                                    <option value="@role" selected="@(roles.Count == 1 && roles[0] == role)">@role</option>
+                                }
+                            </select>
+                            <button type="submit">Назначить</button>
+                        </form>
+                    }
+                </td>
                 @foreach (var key in Model.Catalog.ThematicSlices)
                 {
                     <td><span class="state state-@statuses[key].State">@Labels.State(statuses[key])</span></td>

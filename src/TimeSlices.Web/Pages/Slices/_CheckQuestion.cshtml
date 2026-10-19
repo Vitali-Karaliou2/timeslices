@@ -1,0 +1,27 @@
+@model (Question Question, Answer? Answer)
+@using TimeSlices.Web.Assessment
+@* Вопрос с тем, что обучаемый уже сохранил. Эталон и продолжение — только когда ответ сохранён (ADR 0011, п. 3). *@
+@{
+    var (q, answer) = Model;
+}
+<article class="question">
+    <h2>@DraftMark.BadgeFor(q.Prompt)@DraftMark.Strip(q.Prompt)</h2>
+    @if (answer is not null)
+    {
+        <h3>Ваш ответ</h3>
+        <p class="answer-text">@answer.Text</p>
+        <h3>Эталонное обоснование</h3>
+        <p class="reference">@DraftMark.BadgeFor(q.ReferenceReasoning)@DraftMark.Strip(q.ReferenceReasoning)</p>
+        <h3>Вопрос-продолжение</h3>
+        <p class="follow-up">@DraftMark.BadgeFor(q.FollowUpTemplate)@SelfCheckService.FollowUpText(q, answer.Text)</p>
+        @if (answer.FollowUpText is not null)
+        {
+            <h3>Ваш ответ на продолжение</h3>
+            <p class="answer-text">@answer.FollowUpText</p>
+        }
+        @if (answer.SelfRating is not null)
+        {
+            <p>Самооценка: <strong>@Labels.Rating(answer.SelfRating)</strong></p>
+        }
+    }
+</article>

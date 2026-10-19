@@ -1,0 +1,31 @@
+@page
+@model TimeSlices.Web.Pages.Examiner.IndexModel
+@{
+    ViewData["Title"] = "Сдачи";
+}
+
+<h1>Сдачи</h1>
+@if (Model.Attempts.Count == 0)
+{
+    <p>Отправленных попыток пока нет.</p>
+}
+else
+{
+    <table class="attempts">
+        <thead>
+            <tr><th>Обучаемый</th><th>Срез</th><th>Отправлена</th><th>Статус</th><th></th></tr>
+        </thead>
+        <tbody>
+            @foreach (var a in Model.Attempts)
+            {
+                <tr>
+                    <td>@Model.UserNames.GetValueOrDefault(a.UserId, a.UserId)</td>
+                    <td>@Model.SliceTitle(a.SliceId) <small>(@a.TrackId)</small></td>
+                    <td>@Labels.When(a.SubmittedAt)</td>
+                    <td><span class="state submission submission-@a.Status">@Labels.Submission(a.Status)</span></td>
+                    <td><a asp-page="/Examiner/Attempt" asp-route-attemptId="@a.Id">Открыть</a></td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}

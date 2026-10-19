@@ -1,0 +1,26 @@
+@page
+@model TimeSlices.Web.Areas.Identity.Pages.Account.RegisterModel
+@{
+    ViewData["Title"] = "Регистрация";
+}
+
+<h1>Регистрация</h1>
+<form method="post" asp-route-returnUrl="@Model.ReturnUrl" class="account">
+    <div asp-validation-summary="ModelOnly" class="error" role="alert"></div>
+    <p>
+        <label asp-for="Input.Email"></label>
+        <input asp-for="Input.Email" autocomplete="username" />
+        <span asp-validation-for="Input.Email" class="error"></span>
+    </p>
+    <p>
+        <label asp-for="Input.Password"></label>
+        <input asp-for="Input.Password" autocomplete="new-password" />
+        <span asp-validation-for="Input.Password" class="error"></span>
+    </p>
+    <p>
+        <label asp-for="Input.ConfirmPassword"></label>
+        <input asp-for="Input.ConfirmPassword" autocomplete="new-password" />
+        <span asp-validation-for="Input.ConfirmPassword" class="error"></span>
+    </p>
+    <button type="submit">Зарегистрироваться</button>
+</form>
