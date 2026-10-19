@@ -20,6 +20,29 @@ public class RealContentTests
         Assert.All(_catalog.Slices.Values, s => Assert.Equal("draft", s.Status));
     }
 
+    [Theory]
+    [InlineData("net-before-web-1992", "net-01_net-before-web-1992.md")]
+    [InlineData("static-page-1995", "fe-01_static-page-1995.md")]
+    [InlineData("forms-cgi-1995", "fe-02_forms-cgi-1995.md")]
+    [InlineData("cpu-cycle", "hw-01_cpu-cycle.md")]
+    public void RelevanceNote_IsVerbatimFromSection4OfDescription(string sliceId, string description)
+    {
+        // ADR 0010: текст — дословно из раздела 4 описания («Пояснение актуальности»).
+        var md = File.ReadAllText(Path.Combine(_catalog.Root, "..", "..", "..", "docs", "slices", description));
+        var note = Regex.Match(md, @"\*\*Пояснение актуальности \(([abc])\)\*\*: (.*)");
+
+        Assert.True(note.Success, $"{description}: нет пояснения актуальности");
+        Assert.Equal(note.Groups[1].Value, _catalog.Slices[sliceId].Relevance);
+        Assert.Equal(note.Groups[2].Value.Trim(), _catalog.Slices[sliceId].RelevanceNote);
+    }
+
+    [Fact]
+    public void RelevanceNote_AbsentWhereNoDescriptionYet()
+    {
+        Assert.Equal(["ajax-2005", "punch-cards-1972", "rup-vs-xp-2001"],
+            _catalog.Slices.Values.Where(s => s.RelevanceNote is null).Select(s => s.Id).Order(StringComparer.Ordinal));
+    }
+
     [Fact]
     public void Graph_HasNoCycles()
     {
@@ -93,12 +116,15 @@ public class RealContentTests
         foreach (var impl in emulated)
         {
             var html = File.ReadAllText(Path.Combine(impl.Directory, impl.Entry));
-            var code = Assert.Single(impl.CodeFiles);
-            var block = Regex.Match(html, $"<script type=\"text/plain\" id=\"\\w+\" data-code=\"{Regex.Escape(code.Path)}\">(.*?)</script>",
-                RegexOptions.Singleline);
+            Assert.NotEmpty(impl.CodeFiles);
+            foreach (var code in impl.CodeFiles)
+            {
+                var block = Regex.Match(html, $"<script type=\"text/plain\" id=\"\\w+\" data-code=\"{Regex.Escape(code.Path)}\">(.*?)</script>",
+                    RegexOptions.Singleline);
 
-            Assert.True(block.Success, $"{impl.Id}: нет встроенной копии {code.Path}");
-            Assert.Equal(File.ReadAllText(Path.Combine(impl.Directory, code.Path)), block.Groups[1].Value);
+                Assert.True(block.Success, $"{impl.Id}: нет встроенной копии {code.Path}");
+                Assert.Equal(File.ReadAllText(Path.Combine(impl.Directory, code.Path)), block.Groups[1].Value);
+            }
             foreach (var file in Directory.GetFiles(impl.Directory, "*.js").Prepend(Path.Combine(impl.Directory, impl.Entry)))
                 Assert.Contains("средство визуализации, не код эпохи", File.ReadAllText(file), StringComparison.OrdinalIgnoreCase);
         }
@@ -136,10 +162,14 @@ public class RealContentTests
         Assert.Equal(6, questions.RootElement.GetProperty("questions").GetArrayLength());
     }
 
-    private string[] SquaresListing()
+    private string[] SquaresListing() => Listing("code/squares.txt");
+
+    private string[] CubesListing() => Listing("code/cubes.txt");
+
+    private string[] Listing(string codeFile)
     {
         var impl = _catalog.Examples["squares"].Implementations.Single(i => i.Id == "stored-program-1949");
-        return File.ReadAllLines(Path.Combine(impl.Directory, "code/squares.txt"));
+        return File.ReadAllLines(Path.Combine(impl.Directory, codeFile));
     }
 
     [Theory]
@@ -176,16 +206,75 @@ public class RealContentTests
         Assert.Equal([0, 1, 9, 2, 1, 0], machine.Memory.Skip(20).Take(6));
     }
 
-    [Fact]
-    public void Eniac_ToggleChanges_PointAtLinesOfSetupSheet()
+    [Theory]
+    [InlineData(9, 191, "T 38", 729)]
+    [InlineData(99, 1901, "T 128", 970_299)]
+    public void Cubes_ProgramShown_ComputesTableOfCubes(int counter, int ticks, string cell2After, int last)
     {
-        // eniac.js подменяет строки листа настройки для 100 квадратов; номер строки и текст должны совпадать с листом.
-        var impl = _catalog.Examples["squares"].Implementations.Single(i => i.Id == "eniac-1946");
-        var sheet = File.ReadAllLines(Path.Combine(impl.Directory, "code/setup-sheet.txt"));
-        var changes = Regex.Matches(File.ReadAllText(Path.Combine(impl.Directory, "eniac.js")), "\\{ line: (\\d+), from: \"([^\"]+)\", to: \"([^\"]+)\" \\}");
+        // Эталон прогона — описание hw-01, раздел 5 (редакция 19.10.2026).
+        var machine = TrainingMachine.Load(CubesListing());
+        Assert.Equal(9, machine.Memory[22]);
+        var before = machine.Memory.ToArray();
+        machine.Memory[22] = counter;
 
-        Assert.NotEmpty(changes);
+        machine.Run();
+
+        var n = counter + 1;
+        Assert.Equal(Enumerable.Range(0, n).Select(k => k * k * k), machine.Memory.Skip(28).Take(n));
+        Assert.Equal(last, machine.Memory[28 + n - 1]);
+        Assert.All(machine.Memory.Skip(28 + n), v => Assert.Equal(0, v));
+        Assert.Equal(ticks, machine.Ticks);
+        Assert.Equal(cell2After, TrainingMachine.LettersOf(machine.Memory[2]));
+        Assert.Equal(before.Take(20).Where((_, a) => a != 2), machine.Memory.Take(20).Where((_, a) => a != 2));
+    }
+
+    [Fact]
+    public void Cubes_ListingHas20ProgramWords_AndDataByTheDescription()
+    {
+        var machine = TrainingMachine.Load(CubesListing());
+
+        Assert.Equal(
+            ["T 25", "A 20", "T 28", "A 2", "A 24", "T 2", "A 20", "A 21", "T 20", "A 21", "A 26", "T 21",
+             "A 26", "A 23", "T 26", "A 22", "S 24", "U 22", "E 0", "Z"],
+            machine.Memory.Take(20).Select(TrainingMachine.LettersOf));
+        Assert.Equal([0, 1, 9, 6, 1, 0, 6], machine.Memory.Skip(20).Take(7));
+    }
+
+    [Fact]
+    public void SquaresToCubes_ChangesExactlyElevenCells()
+    {
+        // Переключатель «квадраты / кубы» подсвечивает изменившиеся ячейки: ровно 10, 12–19, 23, 26.
+        // Изменившаяся — другое слово или другая роль по листингу: ячейка 19 у квадратов пуста, у кубов — Z,
+        // а слово у обеих 0 (по одним числам изменились бы 10 ячеек).
+        var squares = TrainingMachine.Load(SquaresListing());
+        var cubes = TrainingMachine.Load(CubesListing());
+        bool Differs(int a) => squares.Memory[a] != cubes.Memory[a] || squares.Kinds[a] != cubes.Kinds[a];
+
+        Assert.Equal([10, 12, 13, 14, 15, 16, 17, 18, 19, 23, 26], Enumerable.Range(0, TrainingMachine.Size).Where(Differs));
+        Assert.Equal([10, 12, 13, 14, 15, 16, 17, 18, 23, 26],
+            Enumerable.Range(0, TrainingMachine.Size).Where(a => squares.Memory[a] != cubes.Memory[a]));
+    }
+
+    [Fact]
+    public void Eniac_ToggleChanges_PointAtLinesOfSetupSheets()
+    {
+        // eniac.js подменяет строки листов настройки для 100 чисел; файл, номер строки и текст должны совпадать с листом.
+        var impl = _catalog.Examples["squares"].Implementations.Single(i => i.Id == "eniac-1946");
+        var changes = Regex.Matches(File.ReadAllText(Path.Combine(impl.Directory, "eniac.js")),
+            "\\{ file: \"([^\"]+)\", line: (\\d+), from: \"([^\"]+)\", to: \"([^\"]+)\" \\}");
+
+        Assert.Equal(["code/setup-sheet-cubes.txt", "code/setup-sheet.txt"],
+            changes.Select(c => c.Groups[1].Value).Distinct().Order(StringComparer.Ordinal));
+        Assert.Equal(impl.CodeFiles.Select(c => c.Path).Order(StringComparer.Ordinal),
+            changes.Select(c => c.Groups[1].Value).Distinct().Order(StringComparer.Ordinal));
         foreach (Match c in changes)
-            Assert.Contains(c.Groups[2].Value, sheet[int.Parse(c.Groups[1].Value) - 1]);
+        {
+            var line = int.Parse(c.Groups[2].Value);
+            var text = File.ReadAllLines(Path.Combine(impl.Directory, c.Groups[1].Value))[line - 1];
+            Assert.Contains(c.Groups[3].Value, text);
+            // Кроме заголовка (строка 1), «10 / 100» меняет только переключатели мастер-программатора — не кабели.
+            if (line != 1)
+                Assert.StartsWith("мастер-программатор", text);
+        }
     }
 }

@@ -4,7 +4,7 @@ namespace TimeSlices.Tests;
 
 /// <summary>
 /// Маленький интерпретатор учебной машины среза cpu-cycle (описание hw-01, раздел 5) — только для тестов:
-/// программа для показа (code/squares.txt) должна давать то, что видит обучаемый. Машина в iframe
+/// программы для показа (code/squares.txt, code/cubes.txt) должны давать то, что видит обучаемый. Машина в iframe
 /// (machine.js) — отдельная реализация тех же правил; обе читают один листинг.
 /// </summary>
 public sealed class TrainingMachine
@@ -13,6 +13,8 @@ public sealed class TrainingMachine
     public static readonly string Letters = "ZASTUEGO"; // код операции = позиция буквы
 
     public int[] Memory { get; } = new int[Size];
+    /// <summary>Роль ячейки по листингу: 'c' — команда, 'd' — число, '\0' — таблица или ячейка вне листинга.</summary>
+    public char[] Kinds { get; } = new char[Size];
     public int Accumulator { get; private set; }
     public int Counter { get; private set; }
     public int Ticks { get; private set; }
@@ -30,6 +32,7 @@ public sealed class TrainingMachine
                 Assert.True(Letters.Contains(command.Groups[2].Value[0]), $"неизвестная команда: {line}");
                 Assert.True(word == int.Parse(command.Groups[4].Value), $"слово не совпадает с командой: {line}");
                 m.Memory[int.Parse(command.Groups[1].Value)] = word;
+                m.Kinds[int.Parse(command.Groups[1].Value)] = 'c';
                 continue;
             }
             var data = Regex.Match(line, @"^\s*(\d+)(?:–(\d+))?\s+(-?\d+)\s");
@@ -39,6 +42,8 @@ public sealed class TrainingMachine
                 var to = data.Groups[2].Success ? int.Parse(data.Groups[2].Value) : from;
                 for (var a = from; a <= to; a++)
                     m.Memory[a] = int.Parse(data.Groups[3].Value);
+                if (!data.Groups[2].Success)
+                    m.Kinds[from] = 'd';
             }
         }
         return m;
@@ -63,7 +68,7 @@ public sealed class TrainingMachine
                 case 'U': Memory[addr] = Accumulator; break;
                 case 'E': if (Accumulator >= 0) Counter = addr; break;
                 case 'G': if (Accumulator < 0) Counter = addr; break;
-                case 'O': break; // печать: программа squares её не использует
+                case 'O': break; // печать: программы squares и cubes её не используют
             }
         }
         Assert.Fail($"нет остановки за {maxTicks} тактов");

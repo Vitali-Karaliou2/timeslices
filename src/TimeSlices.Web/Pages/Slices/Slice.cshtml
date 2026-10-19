@@ -37,6 +37,10 @@
 
 <h2>Актуальность</h2>
 <p>@Labels.Relevance(slice.Relevance)</p>
+@if (DraftMark.StripOrNull(slice.RelevanceNote) is { } relevanceNote)
+{
+    <p class="relevance-note">@DraftMark.BadgeFor(slice.RelevanceNote)@relevanceNote</p>
+}
 <p>@DraftMark.BadgeFor(slice.WhyNeededToReviewModelCode)<strong>Зачем это, если код пишет модель:</strong> @DraftMark.Strip(slice.WhyNeededToReviewModelCode)</p>
 
 <h2>Связь с предыдущими</h2>
