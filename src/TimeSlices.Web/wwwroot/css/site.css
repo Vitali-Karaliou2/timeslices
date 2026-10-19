@@ -41,7 +41,7 @@ ol.frames li.frame-current { background: #e8f0ff; outline: 1px solid #9ab; }
 .submission-Confirmed { background: #d6efd6; }
 .submission-Returned { background: #fde4e1; }
 .examiner-comment { border-left: 4px solid #c44; padding: .25rem .75rem; }
-nav.questions ol { display: flex; flex-wrap: wrap; gap: .25rem 1rem; padding-left: 1.2rem; }
+nav.questions ol { display: flex; flex-wrap: wrap; gap: .25rem 1.25rem; list-style: none; padding-left: 0; }
 article.question { border-top: 1px solid #ddd; margin-top: 1rem; }
 .answer-text { white-space: pre-wrap; background: #f6f6f6; padding: .5rem; }
 .reference { border-left: 4px solid #6a9; padding: .25rem .75rem; }
