@@ -2,7 +2,8 @@
 // (docs/spec/register-machine.md, разделы 1–5). Обобщённая машина около 1960 года, не эмуляция настоящей.
 // Слово команды = КОП × 10000 + РЕГ × 1000 + АДРЕС; 128 ячеек; регистры A, B, C, X; признак LT.
 // Память загружается из копии code/squares.txt (id="squares") или code/cubes.txt (id="cubes"),
-// поэтому машина исполняет ровно показанную программу.
+// поэтому машина исполняет ровно показанную программу. Режим «Своя программа» (раздел 8): текст переводит
+// в слова assembler.js; автоматической проверки ответа нет — обучаемый судит по таблице сам.
 (function () {
     "use strict";
 
@@ -10,9 +11,11 @@
     var N_CELL = 20;                  // N — число строк таблицы
     var TABLE = 28;                   // таблица: [28 + i]
     var MICROSECONDS = 10;            // условное время на команду (спецификация, раздел 5)
+    var MAX_TICKS = 20000;            // защита от зацикливания (спецификация, раздел 8)
     var OPS = ["HALT", "LOAD", "LOADI", "STORE", "STOREX", "ADD", "ADDI", "SUB", "CMP", "BLT"];
     var REGS = ["A", "B", "C", "X"];
 
+    var own = null;                   // образ памяти, записанный в режиме «Своя программа»: { memory, kinds }
     var memory, kinds, reg, pc, ir, lt, ticks, halted, written, changedRegs, running = false, generation = 0;
     var cells = [];
 
@@ -56,11 +59,25 @@
 
     function num(n) { return n < 0 ? "−" + (-n) : String(n); }
 
-    function selectedN() { return Number(document.querySelector("input[name=n]:checked").value); }
+    function ownMode() { return document.querySelector("input[name=mode]:checked").value === "own"; }
+
+    // N: переключатель «10 / 100» в режиме примера, поле 1–100 в режиме «Своя программа».
+    function selectedN() {
+        if (!ownMode()) return Number(document.querySelector("input[name=n]:checked").value);
+        var field = document.getElementById("n-own"), n = Math.round(Number(field.value));
+        n = isFinite(n) ? Math.min(100, Math.max(1, n)) : 10;
+        field.value = n;
+        return n;
+    }
 
     function selectedTask() { return document.querySelector("input[name=task]:checked").value; }
 
-    function source() { return parse(selectedTask()); }
+    function source() {
+        if (!ownMode() || !own) return parse(selectedTask());
+        var image = { memory: own.memory.slice(), kinds: own.kinds.slice() };
+        image.memory[N_CELL] = selectedN();
+        return image;
+    }
 
     function load() {
         var image = source();
@@ -107,6 +124,9 @@
         if (halted) { pc = 0; halted = false; }   // повторный пуск — с ячейки 0, память не перезагружается
         written = -1;
         changedRegs = [];
+        if (ticks >= MAX_TICKS)
+            return stop("Прогон остановлен после 20 000 тактов: похоже, программа не доходит до HALT — проверьте условие перехода. " +
+                "«Сброс» загрузит программу заново.", true);
         if (pc >= SIZE) return stop("Счётчик команд = " + pc + ": такой ячейки нет (0–" + (SIZE - 1) + "). Машина остановилась.", true);
         var from = pc;
         ir = memory[pc];
@@ -232,7 +252,8 @@
         });
         buttons.step.disabled = running;
         buttons.run.disabled = running;
-        document.querySelectorAll("input[name=n], input[name=task]").forEach(function (r) { r.disabled = running; });
+        document.querySelectorAll("input[name=n], input[name=task], input[name=mode], #n-own, #write, #restore")
+            .forEach(function (r) { r.disabled = running; });
     }
 
     function show(text) {
@@ -246,7 +267,8 @@
         running = false;   // сброс во время прогона останавливает его
         load();
         status.className = "";
-        show("Сброс: программа снова загружена из листинга, регистры — нули, счётчик команд = 0.");
+        show(ownMode() && own ? "Сброс: записанная программа снова в памяти, регистры — нули, счётчик команд = 0."
+            : "Сброс: программа снова загружена из листинга, регистры — нули, счётчик команд = 0.");
     });
     // «10 / 100» меняет только ячейку 20 — остальная память и регистры остаются как есть.
     document.querySelectorAll("input[name=n]").forEach(function (radio) {
@@ -272,6 +294,79 @@
             show("Загружена программа " + (selectedTask() === "cubes" ? "кубов" : "квадратов") + " (ячейки " + spans(programCells()) +
                 "): другие числа в " + diff.length + " ячейках — " + spans(diff) + ". Регистры — нули, счётчик команд = 0.");
         });
+    });
+
+    // Режим «Своя программа» (спецификация, раздел 8).
+    var sourceField = document.getElementById("source"), errorsList = document.getElementById("errors");
+
+    // Текст примера для поля — программа квадратов из листинга: «команда ; смысл».
+    function exampleText() {
+        return document.getElementById("squares").textContent.split("\n").map(function (line) {
+            var m = /^\s*(\d+)  (.{16})\s*(\d+)(?:  (.*))?$/.exec(line);
+            return m ? m[2].replace(/\s+$/, "") + (m[4] ? "     ; " + m[4].trim() : "") : null;
+        }).filter(function (line) { return line !== null; }).join("\n") + "\n";
+    }
+
+    function showErrors(errors) {
+        errorsList.innerHTML = "";
+        errors.forEach(function (text) {
+            var li = document.createElement("li");
+            li.textContent = text;
+            errorsList.appendChild(li);
+        });
+        errorsList.hidden = errors.length === 0;
+    }
+
+    // «Записать в память»: при ошибках память не меняется.
+    function write() {
+        running = false;
+        var result = window.RegisterAssembler.assemble(sourceField.value);
+        showErrors(result.errors);
+        if (result.errors.length) {
+            status.className = "error";
+            status.textContent = "Программа не записана: " + (result.errors.length === 1 ? result.errors[0] : "ошибок " + result.errors.length + " — список под полем.");
+            update();
+            return;
+        }
+        var image = { memory: new Array(SIZE).fill(0), kinds: new Array(SIZE).fill("") };
+        result.cells.forEach(function (c) { image.memory[c.address] = c.word; image.kinds[c.address] = c.kind; });
+        image.kinds[N_CELL] = "data";
+        own = image;
+        load();
+        result.cells.forEach(function (c) { cells[c.address].classList.add("toggled"); });
+        status.className = "";
+        var prog = result.cells.filter(function (c) { return c.kind === "prog"; }).map(function (c) { return c.address; });
+        var data = result.cells.filter(function (c) { return c.kind === "data"; }).map(function (c) { return c.address; });
+        show("Записано в память: команды — " + (prog.length ? spans(prog) : "нет") + (data.length ? ", числа — " + spans(data) : "") +
+            "; в ячейке " + N_CELL + " — N = " + memory[N_CELL] + ". Регистры — нули, счётчик команд = 0.");
+    }
+
+    function setMode() {
+        var isOwn = ownMode();
+        document.getElementById("own").hidden = !isOwn;
+        document.getElementById("example-switches").hidden = isOwn;
+        running = false;
+        if (isOwn) {
+            if (!sourceField.value.trim()) sourceField.value = exampleText();
+            write();
+        } else {
+            showErrors([]);
+            load();
+            status.className = "";
+            show(loadedText());
+        }
+    }
+
+    document.querySelectorAll("input[name=mode]").forEach(function (radio) { radio.addEventListener("change", setMode); });
+    document.getElementById("write").addEventListener("click", write);
+    document.getElementById("restore").addEventListener("click", function () { sourceField.value = exampleText(); write(); });
+    document.getElementById("n-own").addEventListener("change", function () {
+        var before = memory[N_CELL];
+        memory[N_CELL] = selectedN();
+        cells.forEach(function (td) { td.classList.remove("toggled"); });
+        cells[N_CELL].classList.add("toggled");
+        status.className = "";
+        show("Изменена только ячейка " + N_CELL + ": " + before + " → " + memory[N_CELL] + ".");
     });
 
     build();
