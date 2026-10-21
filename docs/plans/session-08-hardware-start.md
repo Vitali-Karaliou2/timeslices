@@ -53,7 +53,8 @@
 
    Две реализации с одним кодом — **копии файлов** (оболочка изолирует сборки по папкам). Тест сверяет, что `machine.js` и общие части `index.html` совпадают. Режим задаётся атрибутом в `index.html` (`data-mode="overview"`).
 9. `questions.json` для трёх срезов — дословно из разделов 7 описаний (hw-01: 5, hw-02: 5, hw-04: 7).
-10. Удалить `Content/slices/cpu-cycle/`. Обновить тесты, которые ссылались на `cpu-cycle` и `stored-program-1949`/`eniac-1946` в нём (`RealContentTests`, `HttpTests`, `ProcessScheduleTests`), не ослабляя проверок: те же проверки — на новых местах.
+10. Удалить `Content/slices/cpu-cycle/`. Тест `RelevanceNote_IsVerbatimFromSection4OfDescription`: строку `cpu-cycle` заменить
+    четырьмя — новые срезы и их описания `hw-01…hw-04` (пояснение актуальности — дословно из раздела 4). Обновить тесты, которые ссылались на `cpu-cycle` и `stored-program-1949`/`eniac-1946` в нём (`RealContentTests`, `HttpTests`, `ProcessScheduleTests`), не ослабляя проверок: те же проверки — на новых местах.
 11. Тесты:
     - на главной трек «Общий старт» первый, в нём `eniac-1946` → `edsac-1949` → `register-machine-1960` → `net-before-web-1992`;
     - `edsac-1949-deep` недоступен, пока не пройден `register-machine-1960`.
