@@ -36,7 +36,7 @@ public class ShellFactory : WebApplicationFactory<Program>
     /// Начало «Общего старта» до сети (ADR 0014): после него открыт net-before-web-1992 — прежняя точка входа
     /// HTTP-тестов, написанных до сессии 08.
     /// </summary>
-    public static readonly string[] HardwareStart = ["eniac-1946", "edsac-1949", "register-machine-1960"];
+    public static readonly string[] HardwareStart = ["eniac-1946", "edsac-1949", "register-machine-1965"];
 
     /// <summary>Обучаемый со случайным паролем в тестовой БД; возвращает клиента, уже вошедшего под ним.</summary>
     public async Task<HttpClient> SignedInLearnerAsync(params string[] doneSlices) => (await SignedInAsync(Roles.Learner, doneSlices)).Client;
@@ -239,7 +239,7 @@ public class HttpTests(ShellFactory factory) : IClassFixture<ShellFactory>
 
         var sections = Regex.Matches(body, "<section>(.*?)</section>", RegexOptions.Singleline).Select(m => m.Groups[1].Value).ToList();
         Assert.Contains("<h2>Общий старт</h2>", sections[0]);
-        string[] order = ["eniac-1946", "edsac-1949", "register-machine-1960", "net-before-web-1992"];
+        string[] order = ["eniac-1946", "edsac-1949", "register-machine-1965", "net-before-web-1992"];
         var positions = order.Select(id => sections[0].IndexOf(System.Net.WebUtility.HtmlEncode(catalog.Slices[id].Title), StringComparison.Ordinal)).ToList();
         Assert.DoesNotContain(-1, positions);
         Assert.Equal(positions.Order(), positions);

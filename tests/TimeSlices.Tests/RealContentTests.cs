@@ -16,7 +16,7 @@ public class RealContentTests
         Assert.Equal(["foundations", "hardware", "computer-networks", "frontend", "process"], _catalog.Tracks.Select(t => t.Id));
         Assert.Equal(
             ["ajax-2005", "edsac-1949", "edsac-1949-deep", "eniac-1946", "forms-cgi-1995", "net-before-web-1992",
-             "punch-cards-1972", "register-machine-1960", "rup-vs-xp-2001", "static-page-1995"],
+             "punch-cards-1972", "register-machine-1965", "rup-vs-xp-2001", "static-page-1995"],
             _catalog.Slices.Keys.Order(StringComparer.Ordinal));
         Assert.All(_catalog.Slices.Values, s => Assert.Equal("draft", s.Status));
     }
@@ -27,7 +27,7 @@ public class RealContentTests
     [InlineData("forms-cgi-1995", "fe-02_forms-cgi-1995.md")]
     [InlineData("eniac-1946", "hw-01_eniac-1946.md")]
     [InlineData("edsac-1949", "hw-02_edsac-1949.md")]
-    [InlineData("register-machine-1960", "hw-03_register-machine-1960.md")]
+    [InlineData("register-machine-1965", "hw-03_register-machine-1965.md")]
     [InlineData("edsac-1949-deep", "hw-04_edsac-1949-deep.md")]
     public void RelevanceNote_IsVerbatimFromSection4OfDescription(string sliceId, string description)
     {
@@ -72,11 +72,11 @@ public class RealContentTests
 
         Assert.Empty(Pre("eniac-1946"));
         Assert.Equal(["eniac-1946"], Pre("edsac-1949"));
-        Assert.Equal(["edsac-1949"], Pre("register-machine-1960"));
-        Assert.Equal(["register-machine-1960"], Pre("edsac-1949-deep"));
-        Assert.Equal(["register-machine-1960"], Pre("punch-cards-1972"));
-        Assert.Equal(["register-machine-1960"], Pre("net-before-web-1992"));
-        Assert.Equal(["foundations", "hardware"], _catalog.Slices["register-machine-1960"].Tracks);
+        Assert.Equal(["edsac-1949"], Pre("register-machine-1965"));
+        Assert.Equal(["register-machine-1965"], Pre("edsac-1949-deep"));
+        Assert.Equal(["register-machine-1965"], Pre("punch-cards-1972"));
+        Assert.Equal(["register-machine-1965"], Pre("net-before-web-1992"));
+        Assert.Equal(["foundations", "hardware"], _catalog.Slices["register-machine-1965"].Tracks);
         Assert.Equal(["hardware"], _catalog.Slices["edsac-1949-deep"].Tracks);
         Assert.Contains("foundations", _catalog.Slices["net-before-web-1992"].Tracks);
     }
@@ -91,18 +91,18 @@ public class RealContentTests
             await fx.Service.MarkDoneAsync(ProgressFixture.UserId, new(id, "foundations"));
 
         Assert.Equal([new ThematicSliceKey("net-before-web-1992", "foundations")],
-            await fx.Service.GetNextAsync(ProgressFixture.UserId, new("register-machine-1960", "foundations")));
+            await fx.Service.GetNextAsync(ProgressFixture.UserId, new("register-machine-1965", "foundations")));
         Assert.Equal([new ThematicSliceKey("edsac-1949-deep", "hardware"), new ThematicSliceKey("punch-cards-1972", "hardware")],
-            (await fx.Service.GetNextAsync(ProgressFixture.UserId, new("register-machine-1960", "hardware"))).OrderBy(k => k.SliceId));
+            (await fx.Service.GetNextAsync(ProgressFixture.UserId, new("register-machine-1965", "hardware"))).OrderBy(k => k.SliceId));
         Assert.Equal(["edsac-1949-deep@hardware", "net-before-web-1992@foundations", "punch-cards-1972@hardware"],
-            _catalog.FollowingOf(new("register-machine-1960", "hardware")).Select(k => k.ToString()).Order(StringComparer.Ordinal));
+            _catalog.FollowingOf(new("register-machine-1965", "hardware")).Select(k => k.ToString()).Order(StringComparer.Ordinal));
         Assert.Equal([new ThematicSliceKey("edsac-1949", "hardware")], _catalog.FollowingOf(new("eniac-1946", "hardware")));
     }
 
     [Fact]
     public void Foundations_GoesEniacEdsacRegisterMachineNet()
     {
-        Assert.Equal(["eniac-1946", "edsac-1949", "register-machine-1960", "net-before-web-1992"],
+        Assert.Equal(["eniac-1946", "edsac-1949", "register-machine-1965", "net-before-web-1992"],
             _catalog.SlicesInTrack("foundations").Select(k => k.SliceId));
     }
 
@@ -115,9 +115,9 @@ public class RealContentTests
         Assert.Equal(SliceState.Unavailable, (await fx.StatusOf("edsac-1949-deep@hardware")).State);
 
         // Пройден в «Общем старте» — открывает продвинутый уровень в «Аппаратной основе» (учёт по срезу).
-        Assert.True(await fx.Service.MarkDoneAsync(ProgressFixture.UserId, new("register-machine-1960", "foundations")));
+        Assert.True(await fx.Service.MarkDoneAsync(ProgressFixture.UserId, new("register-machine-1965", "foundations")));
         Assert.Equal(SliceState.Available, (await fx.StatusOf("edsac-1949-deep@hardware")).State);
-        Assert.Equal(SliceState.Done, (await fx.StatusOf("register-machine-1960@hardware")).State);
+        Assert.Equal(SliceState.Done, (await fx.StatusOf("register-machine-1965@hardware")).State);
         Assert.Equal(SliceState.Available, (await fx.StatusOf("punch-cards-1972@hardware")).State);
         Assert.Equal(SliceState.Available, (await fx.StatusOf("net-before-web-1992@computer-networks")).State);
     }
@@ -126,7 +126,7 @@ public class RealContentTests
     public async Task Done_OnNetBeforeWeb_OpensStaticPageAcrossTracks()
     {
         using var fx = new ProgressFixture(_catalog);
-        foreach (var id in new[] { "eniac-1946", "edsac-1949", "register-machine-1960" })
+        foreach (var id in new[] { "eniac-1946", "edsac-1949", "register-machine-1965" })
             Assert.True(await fx.Service.MarkDoneAsync(ProgressFixture.UserId, new(id, "foundations")));
         Assert.Equal(SliceState.Unavailable, (await fx.StatusOf("static-page-1995@frontend")).State);
 
@@ -176,7 +176,7 @@ public class RealContentTests
         // Имитация в iframe не может прочесть code/*.txt (sandbox без allow-same-origin), поэтому
         // держит его копию в <script type="text/plain" data-code="...">; копия не должна разойтись с показом (ADR 0006).
         var emulated = _catalog.Examples.Values.SelectMany(e => e.Implementations).Where(i => i.CodeMode == "emulated").ToList();
-        Assert.Equal(["eniac-1946", "ftp-1992", "gopher-1992", "register-machine-1960", "stored-program-1949", "stored-program-1949-overview"], emulated.Select(i => i.Id).Order(StringComparer.Ordinal));
+        Assert.Equal(["eniac-1946", "ftp-1992", "gopher-1992", "register-machine-1965", "stored-program-1949", "stored-program-1949-overview"], emulated.Select(i => i.Id).Order(StringComparer.Ordinal));
         foreach (var impl in emulated)
         {
             var html = File.ReadAllText(Path.Combine(impl.Directory, impl.Entry));
@@ -219,10 +219,10 @@ public class RealContentTests
         Assert.Equal(
             [("eniac-1946", "eniac-1946", "emulated", "setup-and-run"),
              ("stored-program-1949-overview", "edsac-1949", "emulated", "fetch-execute-overview"),
-             ("register-machine-1960", "register-machine-1960", "emulated", "fetch-execute"),
+             ("register-machine-1965", "register-machine-1965", "emulated", "fetch-execute"),
              ("stored-program-1949", "edsac-1949-deep", "emulated", "fetch-execute")],
             squares.Implementations.Select(i => (i.Id, i.Slice, i.CodeMode, i.Processes.Single().Id)));
-        foreach (var id in new[] { "eniac-1946", "edsac-1949", "register-machine-1960", "edsac-1949-deep" })
+        foreach (var id in new[] { "eniac-1946", "edsac-1949", "register-machine-1965", "edsac-1949-deep" })
             Assert.Equal(["squares"], _catalog.Slices[id].Examples);
         Assert.False(_catalog.Slices.ContainsKey("cpu-cycle"));
     }

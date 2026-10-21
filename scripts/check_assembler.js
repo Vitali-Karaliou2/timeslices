@@ -7,7 +7,7 @@ const fs = require("fs");
 const path = require("path");
 
 const root = path.join(__dirname, "..");
-const assembler = require(path.join(root, "src/TimeSlices.Web/Content/slices/eniac-1946/examples/squares/implementations/register-machine-1960/assembler.js"));
+const assembler = require(path.join(root, "src/TimeSlices.Web/Content/slices/eniac-1946/examples/squares/implementations/register-machine-1965/assembler.js"));
 const fixture = JSON.parse(fs.readFileSync(path.join(root, "tests/TimeSlices.Tests/Fixtures/register-assembler.json"), "utf8"));
 
 let failed = 0;

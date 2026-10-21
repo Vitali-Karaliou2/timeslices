@@ -13,7 +13,7 @@ public class RegisterAssemblerTests(ITestOutputHelper output)
 
     private readonly ContentCatalog _catalog = ContentLoader.Load(TestContent.RealContentRoot());
 
-    private string ImplDir => _catalog.Examples["squares"].Implementations.Single(i => i.Id == "register-machine-1960").Directory;
+    private string ImplDir => _catalog.Examples["squares"].Implementations.Single(i => i.Id == "register-machine-1965").Directory;
 
     private sealed record Case(string Name, string Source, int[][]? Words, string[]? Errors);
 

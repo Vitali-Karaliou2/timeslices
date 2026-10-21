@@ -2,25 +2,25 @@ using TimeSlices.Web.Collection;
 
 namespace TimeSlices.Tests;
 
-/// <summary>Реализация register-machine-1960 примера squares (план сессии 08, ч. В; docs/spec/register-machine.md).</summary>
+/// <summary>Реализация register-machine-1965 примера squares (план сессии 08, ч. В; docs/spec/register-machine.md).</summary>
 public class RegisterMachineTests
 {
     private readonly ContentCatalog _catalog = ContentLoader.Load(TestContent.RealContentRoot());
 
-    private Implementation Impl => _catalog.Examples["squares"].Implementations.Single(i => i.Id == "register-machine-1960");
+    private Implementation Impl => _catalog.Examples["squares"].Implementations.Single(i => i.Id == "register-machine-1965");
 
     private string[] Listing(string file) => File.ReadAllLines(Path.Combine(Impl.Directory, file));
 
     [Fact]
     public void Implementation_IsEmulated_InRegisterMachineSlice_WithTenFrames()
     {
-        Assert.Equal(("register-machine-1960", "emulated"), (Impl.Slice, Impl.CodeMode));
+        Assert.Equal(("register-machine-1965", "emulated"), (Impl.Slice, Impl.CodeMode));
         Assert.Equal(["code/squares.txt", "code/cubes.txt"], Impl.CodeFiles.Select(c => c.Path));
         var process = Impl.Processes.Single().Process!;
         Assert.Equal("fetch-execute", process.Id);
         Assert.Equal(10, process.Frames.Count);
-        Assert.Equal("1960-01-01T10:00:00", process.StartAt);
-        Assert.Equal(6, _catalog.QuestionsOf("register-machine-1960").Count);
+        Assert.Equal("1965-01-01T10:00:00", process.StartAt);
+        Assert.Equal(6, _catalog.QuestionsOf("register-machine-1965").Count);
     }
 
     [Theory]
@@ -120,7 +120,7 @@ public class CompareColumnsTests
         Assert.Equal(Enumerable.Range(0, 17), right.Select(x => x.Address).Order());
         Assert.Equal(8, rows.Select(r => r.Groups[1].Value).Distinct().Count());
         // Слева — листинг машины с регистрами, справа — листинг этой машины, команда в команду.
-        var registers = RegisterMachine.Entries(File.ReadAllLines(Path.Combine(Dir("register-machine-1960"), "code/squares.txt")))
+        var registers = RegisterMachine.Entries(File.ReadAllLines(Path.Combine(Dir("register-machine-1965"), "code/squares.txt")))
             .ToDictionary(e => e.Address, e => e.Command);
         Assert.All(left, x => Assert.Equal(registers[x.Address], System.Text.RegularExpressions.Regex.Replace(x.Text, @"\s+", " ")));
         var accumulator = TrainingMachine.Load(File.ReadAllLines(Path.Combine(Dir("stored-program-1949"), "code/squares.txt")));
