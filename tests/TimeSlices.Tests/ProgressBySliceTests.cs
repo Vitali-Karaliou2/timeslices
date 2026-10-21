@@ -110,11 +110,13 @@ public class ProgressBySliceMigrationTests
                 ('u1', 'eniac', 'hardware',    'Done',       0, '2026-10-21 10:00:00'),
                 ('u1', 'edsac', 'hardware',    'InProgress', 0, '2026-10-21 11:00:00'),
                 ('u2', 'eniac', 'hardware',    'InProgress', 0, '2026-10-21 12:00:00'),
-                ('u2', 'eniac', 'foundations', 'InProgress', 0, '2026-10-21 12:30:00');
+                ('u2', 'eniac', 'foundations', 'InProgress', 1, '2026-10-21 12:30:00');
             INSERT INTO "Attempts" ("UserId", "SliceId", "TrackId", "StartedAt", "Status") VALUES
                 ('u1', 'eniac', 'foundations', '2026-10-20 10:00:00', 'Confirmed'),
                 ('u1', 'eniac', 'hardware',    '2026-10-21 10:00:00', 'InProgress'),
-                ('u1', 'eniac', 'foundations', '2026-10-21 11:00:00', 'Submitted');
+                ('u1', 'eniac', 'foundations', '2026-10-21 11:00:00', 'Submitted'),
+                ('u2', 'eniac', 'hardware',    '2026-10-21 10:00:00', 'Submitted'),
+                ('u2', 'eniac', 'foundations', '2026-10-21 11:00:00', 'InProgress');
             """);
 
         await migrator.MigrateAsync();
@@ -122,13 +124,13 @@ public class ProgressBySliceMigrationTests
         var states = await db.UserSliceStates.AsNoTracking().OrderBy(s => s.UserId).ThenBy(s => s.SliceId).ToListAsync();
         Assert.Collection(states,
             s => Assert.Equal(("u1", "edsac", SliceState.InProgress, false), (s.UserId, s.SliceId, s.State, s.IsRepeat)),
-            s => Assert.Equal(("u1", "eniac", SliceState.Done, true), (s.UserId, s.SliceId, s.State, s.IsRepeat)),
-            s => Assert.Equal(("u2", "eniac", SliceState.InProgress, false), (s.UserId, s.SliceId, s.State, s.IsRepeat)));
+            s => Assert.Equal(("u1", "eniac", SliceState.Done, false), (s.UserId, s.SliceId, s.State, s.IsRepeat)),
+            s => Assert.Equal(("u2", "eniac", SliceState.InProgress, true), (s.UserId, s.SliceId, s.State, s.IsRepeat)));
 
-        // Попытки не удалены; открытой осталась последняя.
+        // Попытки не удалены; открытой осталась отправленная экзаменатору, иначе — последняя.
         var attempts = await db.Attempts.AsNoTracking().OrderBy(a => a.Id).ToListAsync();
         Assert.Equal(
-            [AttemptStatus.Confirmed, AttemptStatus.Returned, AttemptStatus.Submitted],
+            [AttemptStatus.Confirmed, AttemptStatus.Returned, AttemptStatus.Submitted, AttemptStatus.Submitted, AttemptStatus.Returned],
             attempts.Select(a => a.Status));
         Assert.Contains("ADR 0014", attempts[1].ExaminerComment);
     }

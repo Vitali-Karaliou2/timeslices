@@ -42,7 +42,7 @@ public static class RegisterAssembler
                 continue;
             try
             {
-                var address = next;
+                long address = next;
                 var m = Regex.Match(body, @"^(\S+?)\s*:\s*(.*)$");
                 if (m.Success)
                 {
@@ -59,22 +59,22 @@ public static class RegisterAssembler
                     throw new AsmError($"программа налезает на ячейку {NCell} — в ней N, его задаёт поле «N»");
                 if (address >= Table)
                     throw new AsmError($"программа налезает на таблицу — ячейки {Table}–{Size - 1} заполняет сама программа");
-                if (taken.TryGetValue(address, out var by))
+                if (taken.TryGetValue((int)address, out var by))
                     throw new AsmError($"ячейка {address} уже занята строкой {by}");
                 int word;
                 if (Number(body) is { } value)
                 {
                     if (Math.Abs(value) > Limit)
                         throw new AsmError($"число {value} вне ±999 999");
-                    word = value;
+                    word = (int)value;
                 }
                 else
                 {
                     word = Instruction(body);
                 }
-                taken[address] = line;
-                cells.Add((address, word));
-                next = address + 1;
+                taken[(int)address] = line;
+                cells.Add(((int)address, word));
+                next = (int)address + 1;
             }
             catch (AsmError e)
             {
@@ -85,12 +85,14 @@ public static class RegisterAssembler
         return new Result(errors.Count > 0 ? [] : cells, errors);
     }
 
-    private static int? Number(string text)
+    private static long? Number(string text)
     {
-        var m = Regex.Match(text, @"^([+\-−]?)(\d+)$");
+        // [0-9], а не \d: в .NET \d принимает и не-ASCII цифры, в JS — нет. Длинное число не роняет разбор,
+        // а даёт то же сообщение «вне ±999 999», что и JS.
+        var m = Regex.Match(text, @"^([+\-−]?)([0-9]+)$");
         if (!m.Success)
             return null;
-        var n = int.Parse(m.Groups[2].Value, CultureInfo.InvariantCulture);
+        var n = long.Parse(m.Groups[2].Value.Length > 18 ? m.Groups[2].Value[..18] : m.Groups[2].Value, CultureInfo.InvariantCulture);
         return m.Groups[1].Value is "-" or "−" ? -n : n;
     }
 
@@ -105,7 +107,7 @@ public static class RegisterAssembler
     private static int Cell(string text, string op)
     {
         var a = Number(text) ?? throw new AsmError($"после {op} нужен адрес ячейки — число 0–{Size - 1}{Got(text)}");
-        return a is >= 0 and < Size ? a : throw new AsmError($"адрес {a} вне памяти — ячейки 0–{Size - 1}");
+        return a is >= 0 and < Size ? (int)a : throw new AsmError($"адрес {a} вне памяти — ячейки 0–{Size - 1}");
     }
 
     private static int Constant(string text, string op)
@@ -115,7 +117,7 @@ public static class RegisterAssembler
             throw new AsmError(Negative);
         if (n > 999)
             throw new AsmError($"число {n} не помещается в команду: {Field}");
-        return n;
+        return (int)n;
     }
 
     private static int Instruction(string text)
