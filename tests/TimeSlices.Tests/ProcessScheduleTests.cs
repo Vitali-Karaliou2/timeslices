@@ -126,13 +126,13 @@ public class ProcessScheduleTests
     public void Eniac_SetupAndRun_ShowsElapsedLabels_ForDaysOfPreparation()
     {
         // План сессии 04, ч. 2, п. 6: на процессе ENIAC проигрыватель показывает «прошло …»;
-        // план сессии 04b: перед кадром 6 «кубы» — «прошло 1 сут».
+        // описание hw-01, раздел 6: кадр 6 «кубы» — тот же день, через несколько часов.
         var catalog = ContentLoader.Load(TestContent.RealContentRoot());
         var process = catalog.Examples["squares"].Implementations.Single(i => i.Id == "eniac-1946").Processes.Single().Process!;
 
         var steps = ProcessSchedule.Build(process);
 
-        Assert.Equal(["прошло 7 сут", "прошло 2 сут 8 ч", null, "прошло 15 ч 59 мин", "прошло 1 сут", null], steps.Select(s => s.GapLabel));
+        Assert.Equal(["прошло 7 сут", "прошло 2 сут 8 ч", null, "прошло 15 ч 59 мин", "прошло 4 ч", null], steps.Select(s => s.GapLabel));
     }
 
     [Fact]

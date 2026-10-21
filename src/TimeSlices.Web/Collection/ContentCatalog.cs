@@ -183,6 +183,27 @@ public sealed class ContentCatalog
         return seen;
     }
 
+    /// <summary>
+    /// Последующие срезы для навигации из тематического среза (ADR 0014, п. В): по одному на срез;
+    /// трек — текущий, если срез в нём есть, иначе трек, которым подписано ребро (если срез в нём есть), иначе первый трек среза.
+    /// </summary>
+    public IReadOnlyList<ThematicSliceKey> FollowingOf(ThematicSliceKey key) =>
+        SuccessorSlicesOf(key.SliceId).Select(id =>
+        {
+            var tracks = Slices[id].Tracks;
+            if (tracks.Contains(key.TrackId))
+                return new ThematicSliceKey(id, key.TrackId);
+            var label = Slices[id].Prerequisites.Where(p => p.Slice == key.SliceId).Select(p => p.Track).FirstOrDefault(tracks.Contains);
+            return new ThematicSliceKey(id, label ?? tracks[0]);
+        }).ToList();
+
+    /// <summary>
+    /// Через какой тематический срез показать предшественника: в текущем треке, если срез в нём есть,
+    /// иначе — в треке, которым подписано ребро.
+    /// </summary>
+    public ThematicSliceKey PrerequisiteKey(Prerequisite p, string currentTrack) =>
+        Slices[p.Slice].Tracks.Contains(currentTrack) ? new ThematicSliceKey(p.Slice, currentTrack) : p.Key;
+
     /// <summary>Примеры среза по возрастанию сложности (brief 7.1).</summary>
     public IEnumerable<Example> ExamplesOf(Slice slice) =>
         slice.Examples.Select(id => Examples[id]).OrderBy(e => e.Complexity).ThenBy(e => e.Id, StringComparer.Ordinal);

@@ -1,7 +1,9 @@
 <!DOCTYPE html>
 <!-- Средство визуализации, не код эпохи: учебная машина с хранимой программой (не EDSAC и не эмуляция
      настоящей машины, CLAUDE.md). Показываемый код — code/squares.txt и code/cubes.txt; их копии ниже
-     (id="program", id="cubes") должны совпадать с ними дословно (ADR 0006): машина загружает память из этих копий. -->
+     (id="program", id="cubes") должны совпадать с ними дословно (ADR 0006): машина загружает память из этих копий.
+     Этот файл и machine.js — копии в реализациях stored-program-1949-overview и stored-program-1949; отличаются
+     только атрибут data-mode у body и блоки «только полный режим» (их сверяет тест). -->
 <html lang="ru">
 <head>
 <meta charset="utf-8">
@@ -29,9 +31,10 @@
   #legend { font-size: 12px; color: #555; margin: 4px 0; }
   #legend span { padding: 0 4px; border: 1px solid #ddd; }
   #printer { font: 12px monospace; color: #333; }
+  body[data-mode=overview] .full-only { display: none; }
 </style>
 </head>
-<body>
+<body data-mode="full">
 <div id="top">
   <div class="reg"><b>Аккумулятор</b><span id="acc">0</span></div>
   <div class="reg"><b>Счётчик команд</b><span id="pc">0</span></div>
@@ -54,7 +57,7 @@
 </div>
 <p id="status" aria-live="polite"></p>
 <p id="legend">В ячейке: <i>адрес</i>, буквенная запись слова и само слово (число).
-  <span style="background:#eef3ff">команды</span> <span style="background:#f2fbef">числа</span>
+  <span class="full-only" style="background:#eef3ff">команды</span> <span class="full-only" style="background:#f2fbef">числа</span>
   <span style="outline:2px solid #2650c9">счётчик команд</span> <span style="background:#ffe9a8">записано последним тактом</span>
   <span style="outline:2px dashed #c05a00">изменено переключателем</span></p>
 <table id="memory" aria-label="Память: 128 ячеек"></table>

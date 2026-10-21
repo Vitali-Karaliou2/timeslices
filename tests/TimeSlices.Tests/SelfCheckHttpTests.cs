@@ -76,7 +76,7 @@ public class SelfCheckHttpTests(ShellFactory factory) : IClassFixture<ShellFacto
     [Fact]
     public async Task Reference_IsNotSent_BeforeAnswerIsSaved()
     {
-        var client = await factory.SignedInLearnerAsync();
+        var client = await factory.SignedInLearnerAsync(ShellFactory.HardwareStart);
         await StartAsync(client);
 
         var before = await client.GetStringAsync(Check);
@@ -102,7 +102,7 @@ public class SelfCheckHttpTests(ShellFactory factory) : IClassFixture<ShellFacto
     [Fact]
     public async Task Answer_IsHtmlEncoded_InAnswerAndFollowUp()
     {
-        var client = await factory.SignedInLearnerAsync();
+        var client = await factory.SignedInLearnerAsync(ShellFactory.HardwareStart);
         await StartAsync(client);
 
         await AnswerAsync(client, Questions[0].Id, "<script>alert(1)</script>");
@@ -115,7 +115,7 @@ public class SelfCheckHttpTests(ShellFactory factory) : IClassFixture<ShellFacto
     [Fact]
     public async Task Signs_HiddenFromLearner_VisibleToExaminer()
     {
-        var (learner, email) = await factory.SignedInAsync(Roles.Learner);
+        var (learner, email) = await factory.SignedInAsync(Roles.Learner, ShellFactory.HardwareStart);
         await SubmitAllAsync(learner, activeMs: 48213, pasteCount: 3);
 
         foreach (var url in new[] { Check, Check + "?q=" + Questions[0].Id, "/slices/" + Slice, "/" })
@@ -139,7 +139,7 @@ public class SelfCheckHttpTests(ShellFactory factory) : IClassFixture<ShellFacto
     [Fact]
     public async Task Examiner_ForLearner_IsForbidden()
     {
-        var client = await factory.SignedInLearnerAsync();
+        var client = await factory.SignedInLearnerAsync(ShellFactory.HardwareStart);
 
         Assert.Equal(HttpStatusCode.Forbidden, (await client.GetAsync("/examiner")).StatusCode);
         Assert.Equal(HttpStatusCode.Forbidden, (await client.GetAsync("/examiner/attempt/1")).StatusCode);
@@ -150,7 +150,7 @@ public class SelfCheckHttpTests(ShellFactory factory) : IClassFixture<ShellFacto
     [Fact]
     public async Task Examiner_ReturnsWithComment_ThenLearnerRetries_ThenConfirms()
     {
-        var (learner, email) = await factory.SignedInAsync(Roles.Learner);
+        var (learner, email) = await factory.SignedInAsync(Roles.Learner, ShellFactory.HardwareStart);
         await SubmitAllAsync(learner);
         var (examiner, _) = await factory.SignedInAsync(Roles.Admin); // Admin тоже экзаменатор
         var id = await AttemptIdAsync(examiner, email);
@@ -179,7 +179,7 @@ public class SelfCheckHttpTests(ShellFactory factory) : IClassFixture<ShellFacto
     [Fact]
     public async Task Check_ForUnavailableSlice_IsForbidden()
     {
-        var client = await factory.SignedInLearnerAsync();
+        var client = await factory.SignedInLearnerAsync(ShellFactory.HardwareStart);
 
         Assert.Equal(HttpStatusCode.Forbidden, (await client.GetAsync("/slices/static-page-1995/check")).StatusCode);
         Assert.Equal(HttpStatusCode.NotFound, (await client.GetAsync("/slices/ajax-2005/check")).StatusCode); // вопросов нет
@@ -188,7 +188,7 @@ public class SelfCheckHttpTests(ShellFactory factory) : IClassFixture<ShellFacto
     [Fact]
     public async Task Admin_AssignsRole()
     {
-        var (_, email) = await factory.SignedInAsync(Roles.Learner);
+        var (_, email) = await factory.SignedInAsync(Roles.Learner, ShellFactory.HardwareStart);
         var (admin, _) = await factory.SignedInAsync(Roles.Admin);
         string userId;
         using (var scope = factory.Services.CreateScope())
@@ -260,7 +260,7 @@ public class StatusCodeTests(ShellFactory factory) : IClassFixture<ShellFactory>
     [Fact]
     public async Task Post_NotFoundAndBadRequest_KeepTheirCodes()
     {
-        var (learner, _) = await factory.SignedInAsync(Roles.Learner);
+        var (learner, _) = await factory.SignedInAsync(Roles.Learner, ShellFactory.HardwareStart);
         var token = ShellFactory.AntiforgeryToken(await learner.GetStringAsync("/slices/net-before-web-1992"));
         Assert.NotEmpty(token);
         FormUrlEncodedContent Form(params (string, string)[] f) =>

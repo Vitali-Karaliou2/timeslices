@@ -32,11 +32,17 @@ public class ShellFactory : WebApplicationFactory<Program>
         builder.ConfigureTestServices(services => services.AddSingleton<TimeProvider>(Clock));
     }
 
-    /// <summary>Обучаемый со случайным паролем в тестовой БД; возвращает клиента, уже вошедшего под ним.</summary>
-    public async Task<HttpClient> SignedInLearnerAsync() => (await SignedInAsync(Roles.Learner)).Client;
+    /// <summary>
+    /// Начало «Общего старта» до сети (ADR 0014): после него открыт net-before-web-1992 — прежняя точка входа
+    /// HTTP-тестов, написанных до сессии 08.
+    /// </summary>
+    public static readonly string[] HardwareStart = ["eniac-1946", "edsac-1949", "register-machine-1960"];
 
-    /// <summary>Пользователь с ролью и случайным паролем; клиент уже вошёл под ним.</summary>
-    public async Task<(HttpClient Client, string Email)> SignedInAsync(string role)
+    /// <summary>Обучаемый со случайным паролем в тестовой БД; возвращает клиента, уже вошедшего под ним.</summary>
+    public async Task<HttpClient> SignedInLearnerAsync(params string[] doneSlices) => (await SignedInAsync(Roles.Learner, doneSlices)).Client;
+
+    /// <summary>Пользователь с ролью и случайным паролем; клиент уже вошёл под ним. doneSlices — пройденные срезы.</summary>
+    public async Task<(HttpClient Client, string Email)> SignedInAsync(string role, params string[] doneSlices)
     {
         var email = $"{role.ToLowerInvariant()}-{Guid.NewGuid():N}@test.local";
         var password = $"Tt1-{Guid.NewGuid():N}";
@@ -46,6 +52,10 @@ public class ShellFactory : WebApplicationFactory<Program>
             var user = new ApplicationUser { UserName = email, Email = email, EmailConfirmed = true };
             Assert.True((await users.CreateAsync(user, password)).Succeeded);
             Assert.True((await users.AddToRoleAsync(user, role)).Succeeded);
+            var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            foreach (var slice in doneSlices)
+                db.UserSliceStates.Add(new UserSliceState { UserId = user.Id, SliceId = slice, State = SliceState.Done, UpdatedAt = DateTime.UtcNow });
+            await db.SaveChangesAsync();
         }
 
         var client = CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
@@ -126,7 +136,7 @@ public class HttpTests(ShellFactory factory) : IClassFixture<ShellFactory>
     [Fact]
     public async Task Learner_ExamplePage_HasProcessPlayerWithScheduleAndFrameList()
     {
-        var client = await factory.SignedInLearnerAsync();
+        var client = await factory.SignedInLearnerAsync(ShellFactory.HardwareStart);
 
         var body = await client.GetStringAsync("/slices/net-before-web-1992/examples/directory?impl=ftp-1992");
 
@@ -148,13 +158,13 @@ public class HttpTests(ShellFactory factory) : IClassFixture<ShellFactory>
     [Theory]
     [InlineData("/slices/net-before-web-1992")]
     [InlineData("/slices/net-before-web-1992/examples/directory?impl=ftp-1992")]
-    [InlineData("/slices/cpu-cycle")]
-    [InlineData("/slices/cpu-cycle/examples/squares?impl=stored-program-1949")]
-    [InlineData("/slices/cpu-cycle/examples/squares?impl=eniac-1946")]
+    [InlineData("/slices/eniac-1946")]
+    [InlineData("/slices/eniac-1946/examples/squares?impl=eniac-1946")]
+    [InlineData("/slices/edsac-1949/examples/squares?impl=stored-program-1949-overview")]
     [InlineData("/")]
     public async Task Learner_Pages_ShowDraftBadgeInsteadOfPrefix(string url)
     {
-        var client = await factory.SignedInLearnerAsync();
+        var client = await factory.SignedInLearnerAsync(ShellFactory.HardwareStart);
 
         var body = await client.GetStringAsync(url);
 
@@ -167,7 +177,7 @@ public class HttpTests(ShellFactory factory) : IClassFixture<ShellFactory>
     {
         // Пояснение стоп-кадра в разметке — один раз, в списке кадров (для показа без JS); с проигрывателем
         // его прячет класс player-on, а панель стоп-кадра берёт текст из расписания.
-        var client = await factory.SignedInLearnerAsync();
+        var client = await factory.SignedInLearnerAsync(ShellFactory.HardwareStart);
 
         var body = await client.GetStringAsync("/slices/net-before-web-1992/examples/directory?impl=ftp-1992");
 
@@ -177,12 +187,12 @@ public class HttpTests(ShellFactory factory) : IClassFixture<ShellFactory>
     }
 
     [Theory]
-    [InlineData("/slices/cpu-cycle", "cpu-cycle")]
+    [InlineData("/slices/eniac-1946", "eniac-1946")]
     [InlineData("/slices/net-before-web-1992", "net-before-web-1992")]
     public async Task Learner_SlicePage_ShowsRelevanceNoteWithDraftBadge(string url, string sliceId)
     {
         // ADR 0010: пояснение — рядом с пометкой актуальности, без префикса, со значком «черновик» (ADR 0009).
-        var client = await factory.SignedInLearnerAsync();
+        var client = await factory.SignedInLearnerAsync(ShellFactory.HardwareStart);
         var note = factory.Services.GetRequiredService<ContentCatalog>().Slices[sliceId].RelevanceNote!;
 
         var body = await client.GetStringAsync(url);
@@ -197,9 +207,9 @@ public class HttpTests(ShellFactory factory) : IClassFixture<ShellFactory>
     public async Task Learner_SlicePage_SectionsGoBeforeDecisionAfterThenRelevance()
     {
         // ADR 0013, п. 1: «до → решение → после», затем актуальность и примеры; подписи по умолчанию (п. 2).
-        var client = await factory.SignedInLearnerAsync();
+        var client = await factory.SignedInLearnerAsync([.. ShellFactory.HardwareStart, "net-before-web-1992"]);
 
-        var body = await client.GetStringAsync("/slices/cpu-cycle");
+        var body = await client.GetStringAsync("/slices/static-page-1995"); // срез без headings
 
         string[] order =
         [
@@ -220,9 +230,37 @@ public class HttpTests(ShellFactory factory) : IClassFixture<ShellFactory>
     private const string FtpEntry = "slices/net-before-web-1992/examples/directory/implementations/ftp-1992/index.html";
 
     [Fact]
-    public async Task Learner_SliceWithUnfinishedPrerequisite_IsForbiddenWithoutContent()
+    public async Task Learner_HomePage_FoundationsFirst_EniacEdsacRegisterMachineNet()
     {
         var client = await factory.SignedInLearnerAsync();
+        var catalog = factory.Services.GetRequiredService<ContentCatalog>();
+
+        var body = await client.GetStringAsync("/");
+
+        var sections = Regex.Matches(body, "<section>(.*?)</section>", RegexOptions.Singleline).Select(m => m.Groups[1].Value).ToList();
+        Assert.Contains("<h2>Общий старт</h2>", sections[0]);
+        string[] order = ["eniac-1946", "edsac-1949", "register-machine-1960", "net-before-web-1992"];
+        var positions = order.Select(id => sections[0].IndexOf(System.Net.WebUtility.HtmlEncode(catalog.Slices[id].Title), StringComparison.Ordinal)).ToList();
+        Assert.DoesNotContain(-1, positions);
+        Assert.Equal(positions.Order(), positions);
+        Assert.Equal(4, Regex.Matches(sections[0], "<li>").Count);
+    }
+
+    [Fact]
+    public async Task Learner_New_StartsWithEniac_NetBeforeWebLocked()
+    {
+        // ADR 0014: начало коллекции — «Общий старт»; сеть открывается после машины с регистрами.
+        var client = await factory.SignedInLearnerAsync();
+
+        Assert.Equal(HttpStatusCode.OK, (await client.GetAsync("/slices/eniac-1946")).StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, (await client.GetAsync("/slices/net-before-web-1992")).StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, (await client.GetAsync("/slices/edsac-1949-deep")).StatusCode);
+    }
+
+    [Fact]
+    public async Task Learner_SliceWithUnfinishedPrerequisite_IsForbiddenWithoutContent()
+    {
+        var client = await factory.SignedInLearnerAsync(ShellFactory.HardwareStart);
 
         var available = await client.GetAsync("/slices/net-before-web-1992");
         var locked = await client.GetAsync("/slices/forms-cgi-1995");
@@ -241,7 +279,7 @@ public class HttpTests(ShellFactory factory) : IClassFixture<ShellFactory>
     [InlineData("/content/forged/slices/static-page-1995/slice.json")]
     public async Task Content_WithoutToken_IsNotFound(string url)
     {
-        var client = await factory.SignedInLearnerAsync();
+        var client = await factory.SignedInLearnerAsync(ShellFactory.HardwareStart);
 
         var response = await client.GetAsync(url);
 

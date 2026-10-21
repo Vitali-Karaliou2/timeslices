@@ -10,12 +10,13 @@ public class RealContentTests
     private readonly ContentCatalog _catalog = ContentLoader.Load(TestContent.RealContentRoot());
 
     [Fact]
-    public void FirstSet_HasFourTracksAndSevenSlices()
+    public void FirstSet_HasFiveTracksAndTenSlices()
     {
-        Assert.Equal(["hardware", "computer-networks", "frontend", "process"], _catalog.Tracks.Select(t => t.Id));
+        // ADR 0014: cpu-cycle заменён четырьмя срезами; новый трек «Общий старт» — первый.
+        Assert.Equal(["foundations", "hardware", "computer-networks", "frontend", "process"], _catalog.Tracks.Select(t => t.Id));
         Assert.Equal(
-            ["ajax-2005", "cpu-cycle", "forms-cgi-1995", "net-before-web-1992", "punch-cards-1972",
-             "rup-vs-xp-2001", "static-page-1995"],
+            ["ajax-2005", "edsac-1949", "edsac-1949-deep", "eniac-1946", "forms-cgi-1995", "net-before-web-1992",
+             "punch-cards-1972", "register-machine-1960", "rup-vs-xp-2001", "static-page-1995"],
             _catalog.Slices.Keys.Order(StringComparer.Ordinal));
         Assert.All(_catalog.Slices.Values, s => Assert.Equal("draft", s.Status));
     }
@@ -24,7 +25,10 @@ public class RealContentTests
     [InlineData("net-before-web-1992", "net-01_net-before-web-1992.md")]
     [InlineData("static-page-1995", "fe-01_static-page-1995.md")]
     [InlineData("forms-cgi-1995", "fe-02_forms-cgi-1995.md")]
-    [InlineData("cpu-cycle", "superseded/hw-01_cpu-cycle.md")] // до сессии 08: срез ещё в коллекции, описание заменено (ADR 0014)
+    [InlineData("eniac-1946", "hw-01_eniac-1946.md")]
+    [InlineData("edsac-1949", "hw-02_edsac-1949.md")]
+    [InlineData("register-machine-1960", "hw-03_register-machine-1960.md")]
+    [InlineData("edsac-1949-deep", "hw-04_edsac-1949-deep.md")]
     public void RelevanceNote_IsVerbatimFromSection4OfDescription(string sliceId, string description)
     {
         // ADR 0010: текст — дословно из раздела 4 описания («Пояснение актуальности»).
@@ -52,18 +56,78 @@ public class RealContentTests
     }
 
     [Fact]
-    public void StaticPage_FollowsNetBeforeWebAcrossTracks_AndNotCpuCycle()
+    public void StaticPage_FollowsNetBeforeWebAcrossTracks_AndNotHardwareDirectly()
     {
+        // ADR 0014: веб-трек опирается на аппаратную основу по цепочке через net-before-web-1992, без прямых рёбер.
         var prerequisites = _catalog.PrerequisitesOf(new ThematicSliceKey("static-page-1995", "frontend"));
 
         Assert.Equal([new ThematicSliceKey("net-before-web-1992", "computer-networks")], prerequisites);
-        Assert.DoesNotContain(prerequisites, p => p.SliceId == "cpu-cycle");
+        Assert.DoesNotContain(prerequisites, p => p.TrackId == "hardware");
+    }
+
+    [Fact]
+    public void HardwareStart_Edges_ByAdr0014()
+    {
+        string[] Pre(string id) => _catalog.Slices[id].Prerequisites.Select(p => p.Slice).ToArray();
+
+        Assert.Empty(Pre("eniac-1946"));
+        Assert.Equal(["eniac-1946"], Pre("edsac-1949"));
+        Assert.Equal(["edsac-1949"], Pre("register-machine-1960"));
+        Assert.Equal(["register-machine-1960"], Pre("edsac-1949-deep"));
+        Assert.Equal(["register-machine-1960"], Pre("punch-cards-1972"));
+        Assert.Equal(["register-machine-1960"], Pre("net-before-web-1992"));
+        Assert.Equal(["foundations", "hardware"], _catalog.Slices["register-machine-1960"].Tracks);
+        Assert.Equal(["hardware"], _catalog.Slices["edsac-1949-deep"].Tracks);
+        Assert.Contains("foundations", _catalog.Slices["net-before-web-1992"].Tracks);
+    }
+
+    [Fact]
+    public async Task Next_StaysInTrack_FollowingListsAllRoads()
+    {
+        // «Далее» из машины с регистрами: в «Общем старте» — сеть; в «Аппаратной основе» — выбор из двух срезов трека.
+        // «Что будет после» перечисляет все три дороги (hw-03, раздел 4, linkForward).
+        using var fx = new ProgressFixture(_catalog);
+        foreach (var id in ShellFactory.HardwareStart)
+            await fx.Service.MarkDoneAsync(ProgressFixture.UserId, new(id, "foundations"));
+
+        Assert.Equal([new ThematicSliceKey("net-before-web-1992", "foundations")],
+            await fx.Service.GetNextAsync(ProgressFixture.UserId, new("register-machine-1960", "foundations")));
+        Assert.Equal([new ThematicSliceKey("edsac-1949-deep", "hardware"), new ThematicSliceKey("punch-cards-1972", "hardware")],
+            (await fx.Service.GetNextAsync(ProgressFixture.UserId, new("register-machine-1960", "hardware"))).OrderBy(k => k.SliceId));
+        Assert.Equal(["edsac-1949-deep@hardware", "net-before-web-1992@foundations", "punch-cards-1972@hardware"],
+            _catalog.FollowingOf(new("register-machine-1960", "hardware")).Select(k => k.ToString()).Order(StringComparer.Ordinal));
+        Assert.Equal([new ThematicSliceKey("edsac-1949", "hardware")], _catalog.FollowingOf(new("eniac-1946", "hardware")));
+    }
+
+    [Fact]
+    public void Foundations_GoesEniacEdsacRegisterMachineNet()
+    {
+        Assert.Equal(["eniac-1946", "edsac-1949", "register-machine-1960", "net-before-web-1992"],
+            _catalog.SlicesInTrack("foundations").Select(k => k.SliceId));
+    }
+
+    [Fact]
+    public async Task EdsacDeep_Unavailable_UntilRegisterMachineDone()
+    {
+        using var fx = new ProgressFixture(_catalog);
+        foreach (var id in new[] { "eniac-1946", "edsac-1949" })
+            Assert.True(await fx.Service.MarkDoneAsync(ProgressFixture.UserId, new(id, "foundations")));
+        Assert.Equal(SliceState.Unavailable, (await fx.StatusOf("edsac-1949-deep@hardware")).State);
+
+        // Пройден в «Общем старте» — открывает продвинутый уровень в «Аппаратной основе» (учёт по срезу).
+        Assert.True(await fx.Service.MarkDoneAsync(ProgressFixture.UserId, new("register-machine-1960", "foundations")));
+        Assert.Equal(SliceState.Available, (await fx.StatusOf("edsac-1949-deep@hardware")).State);
+        Assert.Equal(SliceState.Done, (await fx.StatusOf("register-machine-1960@hardware")).State);
+        Assert.Equal(SliceState.Available, (await fx.StatusOf("punch-cards-1972@hardware")).State);
+        Assert.Equal(SliceState.Available, (await fx.StatusOf("net-before-web-1992@computer-networks")).State);
     }
 
     [Fact]
     public async Task Done_OnNetBeforeWeb_OpensStaticPageAcrossTracks()
     {
         using var fx = new ProgressFixture(_catalog);
+        foreach (var id in new[] { "eniac-1946", "edsac-1949", "register-machine-1960" })
+            Assert.True(await fx.Service.MarkDoneAsync(ProgressFixture.UserId, new(id, "foundations")));
         Assert.Equal(SliceState.Unavailable, (await fx.StatusOf("static-page-1995@frontend")).State);
 
         Assert.True(await fx.Service.MarkDoneAsync(ProgressFixture.UserId, new("net-before-web-1992", "computer-networks")));
@@ -112,7 +176,7 @@ public class RealContentTests
         // Имитация в iframe не может прочесть code/*.txt (sandbox без allow-same-origin), поэтому
         // держит его копию в <script type="text/plain" data-code="...">; копия не должна разойтись с показом (ADR 0006).
         var emulated = _catalog.Examples.Values.SelectMany(e => e.Implementations).Where(i => i.CodeMode == "emulated").ToList();
-        Assert.Equal(["eniac-1946", "ftp-1992", "gopher-1992", "stored-program-1949"], emulated.Select(i => i.Id).Order(StringComparer.Ordinal));
+        Assert.Equal(["eniac-1946", "ftp-1992", "gopher-1992", "stored-program-1949", "stored-program-1949-overview"], emulated.Select(i => i.Id).Order(StringComparer.Ordinal));
         foreach (var impl in emulated)
         {
             var html = File.ReadAllText(Path.Combine(impl.Directory, impl.Entry));
@@ -146,20 +210,57 @@ public class RealContentTests
     }
 
     [Fact]
-    public void CpuCycle_HasSquaresWithTwoEmulatedImplementations_AndSixQuestions()
+    public void Squares_IntroducedInEniac_PlayedForwardOnHardwareStart()
     {
-        var slice = _catalog.Slices["cpu-cycle"];
         var squares = _catalog.Examples["squares"];
 
-        Assert.Equal(["squares"], slice.Examples);
-        Assert.Equal("a", slice.Relevance);
-        Assert.DoesNotContain("stub-cpu-cycle", _catalog.Examples.Keys);
-        Assert.Equal(("cpu-cycle", 1), (squares.IntroducedInSlice, squares.Complexity));
+        Assert.Equal(("eniac-1946", 1), (squares.IntroducedInSlice, squares.Complexity));
+        Assert.Equal(Path.Combine(_catalog.Root, "slices", "eniac-1946", "examples", "squares"), squares.Directory);
         Assert.Equal(
-            [("eniac-1946", "cpu-cycle", "emulated", "setup-and-run"), ("stored-program-1949", "cpu-cycle", "emulated", "fetch-execute")],
+            [("eniac-1946", "eniac-1946", "emulated", "setup-and-run"),
+             ("stored-program-1949-overview", "edsac-1949", "emulated", "fetch-execute-overview"),
+             ("stored-program-1949", "edsac-1949-deep", "emulated", "fetch-execute")],
             squares.Implementations.Select(i => (i.Id, i.Slice, i.CodeMode, i.Processes.Single().Id)));
-        using var questions = System.Text.Json.JsonDocument.Parse(File.ReadAllText(Path.Combine(_catalog.Root, "slices", "cpu-cycle", "questions.json")));
-        Assert.Equal(6, questions.RootElement.GetProperty("questions").GetArrayLength());
+        foreach (var id in new[] { "eniac-1946", "edsac-1949", "edsac-1949-deep" })
+            Assert.Equal(["squares"], _catalog.Slices[id].Examples);
+        Assert.False(_catalog.Slices.ContainsKey("cpu-cycle"));
+    }
+
+    [Theory]
+    [InlineData("eniac-1946", 5)]
+    [InlineData("edsac-1949", 5)]
+    [InlineData("edsac-1949-deep", 7)]
+    public void HardwareStart_QuestionsAreVerbatimFromSection7(string sliceId, int count)
+    {
+        // План сессии 08, п. 9: вопросы — дословно из разделов 7 описаний (с префиксом ЧЕРНОВИК).
+        var description = Directory.GetFiles(Path.Combine(_catalog.Root, "..", "..", "..", "docs", "slices"), $"hw-0?_{sliceId}.md").Single();
+        var section = Regex.Match(File.ReadAllText(description), @"^## 7\..*?\n(.*?)^## 8\.", RegexOptions.Singleline | RegexOptions.Multiline).Groups[1].Value;
+        var expected = Regex.Matches(section, @"^\d+\. (.*?) — \*Эталон\*: (.*?) — \*Продолжение\*: «(.*)»\s*$", RegexOptions.Multiline)
+            .Select(m => (m.Groups[1].Value.Trim(), m.Groups[2].Value.Trim(), m.Groups[3].Value.Trim())).ToList();
+        var questions = _catalog.QuestionsOf(sliceId);
+
+        Assert.Equal(count, expected.Count);
+        Assert.Equal(expected, questions.Select(q => (DraftMark.Strip(q.Prompt), DraftMark.Strip(q.ReferenceReasoning), DraftMark.Strip(q.FollowUpTemplate))));
+        Assert.All(questions, q => Assert.StartsWith(DraftMark.Prefix, q.Prompt));
+    }
+
+    [Fact]
+    public void StoredProgram_OverviewAndFull_AreCopiesOfOneBuild()
+    {
+        // План сессии 08, п. 8: две реализации с одним кодом — копии; отличаются data-mode и блоки «только полный режим».
+        var impls = _catalog.Examples["squares"].Implementations;
+        var full = impls.Single(i => i.Id == "stored-program-1949").Directory;
+        var overview = impls.Single(i => i.Id == "stored-program-1949-overview").Directory;
+        string Common(string dir) => Regex.Replace(
+            File.ReadAllText(Path.Combine(dir, "index.html")).Replace("data-mode=\"overview\"", "data-mode=\"full\""),
+            "<!-- только полный режим -->.*?<!-- /только полный режим -->\n?", "", RegexOptions.Singleline);
+
+        Assert.Equal(File.ReadAllText(Path.Combine(full, "machine.js")), File.ReadAllText(Path.Combine(overview, "machine.js")));
+        Assert.Equal(Common(full), Common(overview));
+        Assert.Contains("<body data-mode=\"full\">", File.ReadAllText(Path.Combine(full, "index.html")));
+        Assert.Contains("<body data-mode=\"overview\">", File.ReadAllText(Path.Combine(overview, "index.html")));
+        foreach (var code in new[] { "code/squares.txt", "code/cubes.txt" })
+            Assert.Equal(File.ReadAllText(Path.Combine(full, code)), File.ReadAllText(Path.Combine(overview, code)));
     }
 
     private string[] SquaresListing() => Listing("code/squares.txt");
@@ -241,18 +342,21 @@ public class RealContentTests
     }
 
     [Fact]
-    public void SquaresToCubes_ChangesExactlyElevenCells()
+    public void SquaresToCubes_ChangesExactlyTenCells()
     {
-        // Переключатель «квадраты / кубы» подсвечивает изменившиеся ячейки: ровно 10, 12–19, 23, 26.
-        // Изменившаяся — другое слово или другая роль по листингу: ячейка 19 у квадратов пуста, у кубов — Z,
-        // а слово у обеих 0 (по одним числам изменились бы 10 ячеек).
+        // Переключатель «квадраты / кубы» подсвечивает ячейки с другим числом: ровно 10, 12–18, 23, 26
+        // (решение автора 19.10.2026, hw-04, вопрос 7): ячейка 19 у квадратов пуста, у кубов — Z, но у обеих 0.
         var squares = TrainingMachine.Load(SquaresListing());
         var cubes = TrainingMachine.Load(CubesListing());
-        bool Differs(int a) => squares.Memory[a] != cubes.Memory[a] || squares.Kinds[a] != cubes.Kinds[a];
 
-        Assert.Equal([10, 12, 13, 14, 15, 16, 17, 18, 19, 23, 26], Enumerable.Range(0, TrainingMachine.Size).Where(Differs));
         Assert.Equal([10, 12, 13, 14, 15, 16, 17, 18, 23, 26],
             Enumerable.Range(0, TrainingMachine.Size).Where(a => squares.Memory[a] != cubes.Memory[a]));
+        Assert.Equal('c', cubes.Kinds[19]);
+        Assert.Equal(0, cubes.Memory[19]);
+        Assert.Equal(0, squares.Memory[19]);
+        // machine.js сравнивает только числа, без роли по листингу.
+        var js = File.ReadAllText(Path.Combine(_catalog.Examples["squares"].Implementations.Single(i => i.Id == "stored-program-1949").Directory, "machine.js"));
+        Assert.Contains("if (word !== other.memory[a]) diff.push(a);", js);
     }
 
     [Fact]

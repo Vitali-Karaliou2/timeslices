@@ -75,11 +75,16 @@ public class SliceProgressService(ApplicationDbContext db, ContentCatalog catalo
         return true;
     }
 
-    /// <summary>«Далее»: непосредственные последующие тематические срезы, которые сейчас открыты.</summary>
+    /// <summary>
+    /// «Далее»: непосредственные последующие срезы, которые сейчас открыты, — по одному на срез.
+    /// Если среди них есть срезы текущего трека, предлагаются только они; иначе — переход в другие треки.
+    /// </summary>
     public async Task<IReadOnlyList<ThematicSliceKey>> GetNextAsync(string userId, ThematicSliceKey key)
     {
-        var statuses = await GetStatusesAsync(userId);
-        return catalog.SuccessorsOf(key).Where(k => statuses[k].State != SliceState.Unavailable).ToList();
+        var statuses = await GetSliceStatusesAsync(userId);
+        var open = catalog.FollowingOf(key).Where(k => statuses[k.SliceId].State != SliceState.Unavailable).ToList();
+        var inTrack = open.Where(k => k.TrackId == key.TrackId).ToList();
+        return inTrack.Count > 0 ? inTrack : open;
     }
 
     /// <summary>Продвинулся ли пользователь дальше: начат или пройден хотя бы один последующий срез (в любом треке).</summary>

@@ -1,7 +1,10 @@
-// Средство визуализации, не код эпохи: учебная машина среза «Программа в памяти» (описание hw-01, раздел 5).
-// Не EDSAC: свой формат слова (код операции × 1000 + адрес), 128 ячеек, восемь команд.
-// Память загружается из копии code/squares.txt (id="program") или code/cubes.txt (id="cubes"),
-// поэтому машина исполняет ровно показанную программу.
+// Средство визуализации, не код эпохи: учебная машина с аккумулятором по образцу EDSAC
+// (описания hw-02, раздел 5, и hw-04, раздел 5). Не EDSAC: свой формат слова (код операции × 1000 + адрес),
+// 128 ячеек, восемь команд. Память загружается из копии code/squares.txt (id="program") или code/cubes.txt
+// (id="cubes"), поэтому машина исполняет ровно показанную программу.
+// Один файл в двух реализациях (копии сверяет тест): режим — атрибут data-mode у <body> в index.html.
+// "overview" (срез edsac-1949) — короткая строка такта, подсвечены только ячейка по счётчику команд
+// и ячейка, в которую записали; "full" (срез edsac-1949-deep) — подробная строка такта и роли ячеек.
 (function () {
     "use strict";
 
@@ -10,6 +13,7 @@
     var CODES = { Z: 0, A: 1, S: 2, T: 3, U: 4, E: 5, G: 6, O: 7 };
     var LETTERS = ["Z", "A", "S", "T", "U", "E", "G", "O"];
     var COUNTER = 22;                 // ячейка счётчика: N − 1
+    var OVERVIEW = document.body.getAttribute("data-mode") === "overview";
 
     var memory, kinds, acc, pc, ir, ticks, halted, changed, printed, running = false, generation = 0;
     var cells = [];
@@ -101,9 +105,10 @@
             case "E": if (acc >= 0) { pc = addr; text += "Аккумулятор ≥ 0 — счётчик команд := " + addr + "."; } else text += "Аккумулятор < 0 — дальше по порядку."; break;
             case "G": if (acc < 0) { pc = addr; text += "Аккумулятор < 0 — счётчик команд := " + addr + "."; } else text += "Аккумулятор ≥ 0 — дальше по порядку."; break;
             case "O": printed.push(memory[addr]); text += "Печать [" + addr + "] = " + memory[addr] + "."; break;
-            case "Z": return stop(text + "Стоп. В ячейке 2 теперь " + letters(memory[2]) + ".", false);
+            case "Z": return stop(OVERVIEW ? "Такт " + ticks + ": команда из ячейки " + from + " — стоп."
+                : text + "Стоп. В ячейке 2 теперь " + letters(memory[2]) + ".", false);
         }
-        return text;
+        return OVERVIEW ? "Такт " + ticks + ": команда из ячейки " + from + " выполнена." : text;
     }
 
     function stop(text, error) {
@@ -165,8 +170,8 @@
             td.appendChild(w);
             td.appendChild(document.createElement("br"));
             td.appendChild(document.createTextNode(letters(memory[a])));
-            td.classList.toggle("prog", kinds[a] === "prog");
-            td.classList.toggle("data", kinds[a] === "data");
+            td.classList.toggle("prog", !OVERVIEW && kinds[a] === "prog");
+            td.classList.toggle("data", !OVERVIEW && kinds[a] === "data");
             td.classList.toggle("pc", a === pc && !halted);
             td.classList.toggle("changed", a === changed);
         });
@@ -203,15 +208,15 @@
         });
     });
 
-    // Переключатель задачи загружает другую программу в ту же память и отмечает ячейки, которые
-    // по листингу отличаются от другой программы (число повторов то же): другое слово или другая роль.
-    // Ячейка 19 у квадратов пуста, у кубов — Z; слово у обеих 0, но по листингу это разные ячейки.
+    // Переключатель задачи загружает другую программу в ту же память и отмечает ячейки, в которых
+    // другое число (число повторов то же). Ячейка 19 у квадратов пуста, у кубов — Z: у обеих 0,
+    // для машины это одна и та же ячейка — изменились 10 ячеек (решение автора 19.10.2026, hw-04, вопрос 7).
     document.querySelectorAll("input[name=task]").forEach(function (radio) {
         radio.addEventListener("change", function () {
             var other = parse(selectedTask() === "cubes" ? "program" : "cubes");
             load();
             var diff = [];
-            memory.forEach(function (word, a) { if (word !== other.memory[a] || kinds[a] !== other.kinds[a]) diff.push(a); });
+            memory.forEach(function (word, a) { if (word !== other.memory[a]) diff.push(a); });
             diff.forEach(function (a) { cells[a].classList.add("toggled"); });
             status.className = "";
             show("Загружена программа " + (selectedTask() === "cubes" ? "кубов" : "квадратов") + ": изменились " +
