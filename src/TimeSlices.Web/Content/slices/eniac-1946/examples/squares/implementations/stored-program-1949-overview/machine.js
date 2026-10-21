@@ -4,7 +4,8 @@
 // (id="cubes"), поэтому машина исполняет ровно показанную программу.
 // Один файл в двух реализациях (копии сверяет тест): режим — атрибут data-mode у <body> в index.html.
 // "overview" (срез edsac-1949) — короткая строка такта, подсвечены только ячейка по счётчику команд
-// и ячейка, в которую записали; "full" (срез edsac-1949-deep) — подробная строка такта и роли ячеек.
+// и ячейка, в которую записали; "full" (срез edsac-1949-deep) — подробная строка такта и роли ячеек,
+// а если в index.html есть панель «Два столбца» (id="compare"), — подсветка группы по выполненной команде.
 (function () {
     "use strict";
 
@@ -16,6 +17,7 @@
     var OVERVIEW = document.body.getAttribute("data-mode") === "overview";
 
     var memory, kinds, acc, pc, ir, ticks, halted, changed, printed, running = false, generation = 0;
+    var executed = -1;                // ячейка, команда из которой выполнена последним тактом
     var cells = [];
 
     // Разбор листинга: «адрес  буква [адрес]  слово  смысл» — команда, «адрес[–адрес]  число  смысл» — данные.
@@ -45,7 +47,7 @@
         var image = parse(selectedTask());
         memory = image.memory;
         kinds = image.kinds;
-        acc = 0; pc = 0; ir = null; ticks = 0; halted = false; changed = -1; printed = [];
+        acc = 0; pc = 0; ir = null; ticks = 0; halted = false; changed = -1; printed = []; executed = -1;
         cells.forEach(function (td) { td.classList.remove("toggled"); });
     }
 
@@ -91,6 +93,7 @@
         changed = -1;
         ir = memory[pc];
         var from = pc;
+        executed = from;
         pc = pc + 1;
         ticks++;
         var op = Math.floor(ir / 1000), addr = ir % 1000;
@@ -175,6 +178,7 @@
             td.classList.toggle("pc", a === pc && !halted);
             td.classList.toggle("changed", a === changed);
         });
+        highlightCompare();
         buttons.step.disabled = running;
         buttons.run.disabled = running;
         document.querySelectorAll("input[name=n], input[name=task]").forEach(function (r) { r.disabled = running; });
@@ -224,7 +228,62 @@
         });
     });
 
+    // Панель «Два столбца» (описание hw-04, раздел 5; спецификация машины с регистрами, раздел 6) — только в полном
+    // режиме. Строится из копии code/compare.txt: «группа | слева | справа | почему справа длиннее»; при прогоне
+    // программы квадратов подсвечиваются группа выполненной команды справа и команды этой группы слева.
+    var compare = { rows: [], byRight: {} };
+
+    function buildCompare() {
+        var code = document.getElementById("columns"), table = document.getElementById("compare-table");
+        if (!code || !table) return;
+        var groups = [];
+        code.textContent.split("\n").forEach(function (line) {
+            var m = /^\s*(\d+) \| (.*?)\s*\| (.*?)\s*\|\s?(.*)$/.exec(line);
+            if (!m) return;
+            var g = Number(m[1]);
+            if (!groups[g]) groups[g] = { left: [], right: [], why: "" };
+            if (m[2]) groups[g].left.push(m[2]);
+            if (m[3]) groups[g].right.push(m[3]);
+            if (m[4]) groups[g].why = m[4];
+        });
+        function column(lines, side, g) {
+            var td = document.createElement("td");
+            td.className = side;
+            lines.forEach(function (text) {
+                var div = document.createElement("div"), a = /^\s*(\d+)  /.exec(text);
+                div.textContent = text.trim();
+                if (a && side === "right") compare.byRight[Number(a[1])] = { group: g, line: div };
+                if (!a) div.className = "note";
+                td.appendChild(div);
+            });
+            return td;
+        }
+        groups.forEach(function (group, g) {
+            if (!group) return;
+            var tr = table.insertRow(), link = document.createElement("td");
+            tr.appendChild(column(group.left, "left", g));
+            link.className = "link";
+            link.textContent = "↔ " + g;
+            tr.appendChild(link);
+            tr.appendChild(column(group.right, "right", g));
+            var why = tr.insertCell();
+            why.className = "why";
+            why.textContent = group.why;
+            compare.rows[g] = tr;
+        });
+    }
+
+    function highlightCompare() {
+        if (!compare.rows.length) return;
+        var squares = selectedTask() === "program", hit = squares ? compare.byRight[executed] : null;
+        compare.rows.forEach(function (tr, g) { if (tr) tr.classList.toggle("current", !!hit && hit.group === g); });
+        Object.keys(compare.byRight).forEach(function (a) { compare.byRight[a].line.classList.toggle("now", !!hit && Number(a) === executed); });
+        document.getElementById("compare-note").textContent = squares ? ""
+            : "Панель сравнивает программы квадратов; для кубов подсветки нет.";
+    }
+
     build();
+    buildCompare();
     load();
     status.textContent = loadedText();
     update();

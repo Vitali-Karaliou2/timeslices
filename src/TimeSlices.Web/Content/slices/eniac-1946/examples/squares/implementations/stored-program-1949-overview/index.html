@@ -32,6 +32,18 @@
   #legend span { padding: 0 4px; border: 1px solid #ddd; }
   #printer { font: 12px monospace; color: #333; }
   body[data-mode=overview] .full-only { display: none; }
+  #compare h2 { font-size: 15px; margin: 12px 0 2px; }
+  #compare p { font-size: 12px; color: #555; margin: 2px 0 4px; }
+  #compare-table { border-collapse: collapse; font: 12px monospace; }
+  #compare-table td { border-top: 1px solid #ccb; border-bottom: 1px solid #ccb; padding: 2px 6px; vertical-align: top; }
+  #compare-table td.left { background: #eef6ff; border-left: 1px solid #ccb; }
+  #compare-table td.right { background: #eef3ff; }
+  #compare-table td.link { color: #776; white-space: nowrap; text-align: center; }
+  #compare-table td.why { font: 12px system-ui, sans-serif; color: #555; border-right: 1px solid #ccb; max-width: 22em; }
+  #compare-table td .note { color: #887; }
+  #compare-table tr.current td { background: #fff3c4; }
+  #compare-table tr.current td.left div:not(.note), #compare-table div.now { font-weight: bold; }
+  #compare-table div.now { outline: 2px solid #2650c9; outline-offset: -1px; }
 </style>
 </head>
 <body data-mode="overview">

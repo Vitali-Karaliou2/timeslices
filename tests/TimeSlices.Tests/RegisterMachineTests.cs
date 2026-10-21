@@ -88,3 +88,61 @@ public class RegisterMachineTests
         Assert.Equal("запись за пределы памяти", hundred.Error);
     }
 }
+
+/// <summary>Панель «Два столбца» среза edsac-1949-deep (план сессии 08, ч. Д).</summary>
+public class CompareColumnsTests
+{
+    private readonly ContentCatalog _catalog = ContentLoader.Load(TestContent.RealContentRoot());
+
+    private string Dir(string impl) => _catalog.Examples["squares"].Implementations.Single(i => i.Id == impl).Directory;
+
+    private static readonly System.Text.RegularExpressions.Regex Row = new(@"^\s*(\d+) \| (.*?)\s*\| (.*?)\s*\|\s?(.*)$");
+    private static readonly System.Text.RegularExpressions.Regex Command = new(@"^\s*(\d+)  (.+)$");
+
+    [Fact]
+    public void Groups_CoverAll17RightAnd10Left_WithoutOverlap()
+    {
+        var rows = File.ReadAllLines(Path.Combine(Dir("stored-program-1949"), "code/compare.txt"))
+            .Select(l => Row.Match(l)).Where(m => m.Success).ToList();
+        var left = new List<(int Group, int Address, string Text)>();
+        var right = new List<(int Group, int Address, string Text)>();
+        foreach (var r in rows)
+        {
+            var g = int.Parse(r.Groups[1].Value);
+            if (Command.Match(r.Groups[2].Value) is { Success: true } l)
+                left.Add((g, int.Parse(l.Groups[1].Value), l.Groups[2].Value.Trim()));
+            if (Command.Match(r.Groups[3].Value) is { Success: true } c)
+                right.Add((g, int.Parse(c.Groups[1].Value), c.Groups[2].Value.Trim()));
+        }
+
+        // Каждая команда — ровно в одной группе (без пересечений), и покрыты все.
+        Assert.Equal(Enumerable.Range(0, 10), left.Select(x => x.Address).Order());
+        Assert.Equal(Enumerable.Range(0, 17), right.Select(x => x.Address).Order());
+        Assert.Equal(8, rows.Select(r => r.Groups[1].Value).Distinct().Count());
+        // Слева — листинг машины с регистрами, справа — листинг этой машины, команда в команду.
+        var registers = RegisterMachine.Entries(File.ReadAllLines(Path.Combine(Dir("register-machine-1960"), "code/squares.txt")))
+            .ToDictionary(e => e.Address, e => e.Command);
+        Assert.All(left, x => Assert.Equal(registers[x.Address], System.Text.RegularExpressions.Regex.Replace(x.Text, @"\s+", " ")));
+        var accumulator = TrainingMachine.Load(File.ReadAllLines(Path.Combine(Dir("stored-program-1949"), "code/squares.txt")));
+        Assert.All(right, x => Assert.Equal(TrainingMachine.LettersOf(accumulator.Memory[x.Address]), x.Text));
+        // Цикл: STOREX…BLT (3–8) слева — 6 команд; справа E 0 возвращает к ячейке 0 — цикл 0–15, 16 команд
+        // (161 такт = 10 × 16 + 1). В спецификации, раздел 6, и hw-04, кадр 10, — «15»: расхождение в отчёте сессии 08.
+        Assert.Equal(6, left.Count(x => x.Group is >= 3 and <= 7));
+        Assert.Equal(16, right.Count(x => x.Group is >= 3 and <= 7));
+    }
+
+    [Fact]
+    public void Panel_OnlyInFullMode_AndFrame10PointsAtCompare()
+    {
+        var full = _catalog.Examples["squares"].Implementations.Single(i => i.Id == "stored-program-1949");
+        Assert.Equal(["code/squares.txt", "code/cubes.txt", "code/compare.txt"], full.CodeFiles.Select(c => c.Path));
+        Assert.Contains("id=\"compare-table\"", File.ReadAllText(Path.Combine(Dir("stored-program-1949"), "index.html")));
+        var overview = File.ReadAllText(Path.Combine(Dir("stored-program-1949-overview"), "index.html"));
+        Assert.DoesNotContain("id=\"compare-table\"", overview);
+        Assert.DoesNotContain("code/compare.txt", overview);
+
+        var frames = full.Processes.Single().Process!.Frames;
+        Assert.Equal(10, frames.Count);
+        Assert.Equal("code/compare.txt", frames.Single(f => f.Order == 10).Detail!.CodeFile);
+    }
+}

@@ -32,6 +32,18 @@
   #legend span { padding: 0 4px; border: 1px solid #ddd; }
   #printer { font: 12px monospace; color: #333; }
   body[data-mode=overview] .full-only { display: none; }
+  #compare h2 { font-size: 15px; margin: 12px 0 2px; }
+  #compare p { font-size: 12px; color: #555; margin: 2px 0 4px; }
+  #compare-table { border-collapse: collapse; font: 12px monospace; }
+  #compare-table td { border-top: 1px solid #ccb; border-bottom: 1px solid #ccb; padding: 2px 6px; vertical-align: top; }
+  #compare-table td.left { background: #eef6ff; border-left: 1px solid #ccb; }
+  #compare-table td.right { background: #eef3ff; }
+  #compare-table td.link { color: #776; white-space: nowrap; text-align: center; }
+  #compare-table td.why { font: 12px system-ui, sans-serif; color: #555; border-right: 1px solid #ccb; max-width: 22em; }
+  #compare-table td .note { color: #887; }
+  #compare-table tr.current td { background: #fff3c4; }
+  #compare-table tr.current td.left div:not(.note), #compare-table div.now { font-weight: bold; }
+  #compare-table div.now { outline: 2px solid #2650c9; outline-offset: -1px; }
 </style>
 </head>
 <body data-mode="full">
@@ -130,6 +142,39 @@
    26      6  d2 — вторая разность
 28–37      0  таблица (для 100 кубов — 28–127), в начале пустая
 </script>
+<!-- только полный режим -->
+<section id="compare" aria-label="Два столбца">
+  <h2>Два столбца: та же программа квадратов на машине с регистрами (около 1960) и на этой машине</h2>
+  <p>Средство визуализации, не код эпохи. Одна строка слева — цепочка команд справа; при прогоне квадратов подсвечена
+    группа команды, которую машина выполнила последней. <span id="compare-note"></span></p>
+  <table id="compare-table" aria-label="Соответствие команд двух машин"></table>
+</section>
+<script type="text/plain" id="columns" data-code="code/compare.txt">Квадраты на двух машинах. Слева — машина с регистрами (около 1960), справа — машина с аккумулятором (1949).
+Одна строка слева — цепочка справа; номер группы связывает их. Слева 10 команд, справа 17; цикл — 6 против 16.
+
+Гр | Машина с регистрами             | Машина с аккумулятором   | Почему справа длиннее
+ 1 |  0  LOADI  A, 0                 | —   ячейка 20 = 0        | константы нельзя записать в команду — только в память
+ 1 |  1  LOADI  B, 1                 | —   ячейка 21 = 1        |
+ 2 |  2  LOADI  X, 0                 | —   в ячейке 2 — T 28    | индекса нет: адрес хранится прямо в команде
+ 3 |  3  STOREX A, 28                |  0  T 25                 | один аккумулятор: сначала очистить, потом взять квадрат, потом записать
+ 3 |                                 |  1  A 20                 |
+ 3 |                                 |  2  T 28                 |
+ 4 | —   сдвиг индекса — ADDI X, 1   |  3  A 2                  | чтобы писать в следующую ячейку, программа прибавляет 1 к собственной команде
+ 4 |                                 |  4  A 24                 |
+ 4 |                                 |  5  T 2                  |
+ 5 |  4  ADD    A, B                 |  6  A 20                 | регистров нет: переменные живут в памяти, каждое сложение — через аккумулятор
+ 5 |                                 |  7  A 21                 |
+ 5 |                                 |  8  T 20                 |
+ 6 |  5  ADDI   B, 2                 |  9  A 21                 | константа 2 — в ячейке 23
+ 6 |                                 | 10  A 23                 |
+ 6 |                                 | 11  T 21                 |
+ 7 |  6  ADDI   X, 1                 | 12  A 22                 | сравнения нет: счётчик уменьшают до нуля и смотрят знак аккумулятора
+ 7 |  7  CMP    X, 20                | 13  S 24                 |
+ 7 |  8  BLT    3                    | 14  U 22                 |
+ 7 |                                 | 15  E 0                  |
+ 8 |  9  HALT                        | 16  Z                    |
+</script>
+<!-- /только полный режим -->
 <script src="machine.js"></script>
 </body>
 </html>
