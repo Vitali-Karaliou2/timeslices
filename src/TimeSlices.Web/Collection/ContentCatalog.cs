@@ -8,6 +8,7 @@ public sealed class ContentCatalog
 {
     private readonly Dictionary<ThematicSliceKey, List<ThematicSliceKey>> _prerequisites;
     private readonly Dictionary<ThematicSliceKey, List<ThematicSliceKey>> _successors;
+    private readonly Dictionary<string, List<string>> _sliceSuccessors;
     private readonly List<(string Directory, Example Example, Implementation Implementation)> _implementationDirectories;
     private readonly IReadOnlyDictionary<string, IReadOnlyList<Question>> _questions;
     private readonly Dictionary<string, List<ReferenceMention>> _mentions;
@@ -44,6 +45,13 @@ public sealed class ContentCatalog
         foreach (var (key, prereqs) in _prerequisites)
             foreach (var p in prereqs)
                 _successors[p].Add(key);
+
+        // Граф срезов без треков: единица учёта прохождения — срез (ADR 0014, п. В).
+        SliceOrder = sliceOrder;
+        _sliceSuccessors = sliceOrder.ToDictionary(id => id, _ => new List<string>());
+        foreach (var id in sliceOrder)
+            foreach (var p in PrerequisiteSlicesOf(id))
+                _sliceSuccessors[p].Add(id);
 
         Articles = articles ?? new Dictionary<string, Article>(StringComparer.Ordinal);
         _mentions = BuildMentions(slices, examples, Articles);
@@ -149,6 +157,52 @@ public sealed class ContentCatalog
         }
         return seen;
     }
+
+    /// <summary>Все срезы в топологическом порядке: предшественники раньше последующих.</summary>
+    public IReadOnlyList<string> SliceOrder { get; }
+
+    /// <summary>Срезы-предшественники без учёта трека ребра: трек в prerequisites — только подпись (ADR 0014, п. В.2).</summary>
+    public IReadOnlyList<string> PrerequisiteSlicesOf(string sliceId) =>
+        Slices[sliceId].Prerequisites.Select(p => p.Slice).Distinct().ToList();
+
+    /// <summary>Непосредственные срезы-последующие.</summary>
+    public IReadOnlyList<string> SuccessorSlicesOf(string sliceId) => _sliceSuccessors[sliceId];
+
+    /// <summary>Все последующие (транзитивно) срезы.</summary>
+    public IReadOnlyCollection<string> AllSuccessorSlicesOf(string sliceId)
+    {
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+        var stack = new Stack<string>(_sliceSuccessors[sliceId]);
+        while (stack.Count > 0)
+        {
+            var id = stack.Pop();
+            if (seen.Add(id))
+                foreach (var s in _sliceSuccessors[id])
+                    stack.Push(s);
+        }
+        return seen;
+    }
+
+    /// <summary>
+    /// Последующие срезы для навигации из тематического среза (ADR 0014, п. В): по одному на срез;
+    /// трек — текущий, если срез в нём есть, иначе трек, которым подписано ребро (если срез в нём есть), иначе первый трек среза.
+    /// </summary>
+    public IReadOnlyList<ThematicSliceKey> FollowingOf(ThematicSliceKey key) =>
+        SuccessorSlicesOf(key.SliceId).Select(id =>
+        {
+            var tracks = Slices[id].Tracks;
+            if (tracks.Contains(key.TrackId))
+                return new ThematicSliceKey(id, key.TrackId);
+            var label = Slices[id].Prerequisites.Where(p => p.Slice == key.SliceId).Select(p => p.Track).FirstOrDefault(tracks.Contains);
+            return new ThematicSliceKey(id, label ?? tracks[0]);
+        }).ToList();
+
+    /// <summary>
+    /// Через какой тематический срез показать предшественника: в текущем треке, если срез в нём есть,
+    /// иначе — в треке, которым подписано ребро.
+    /// </summary>
+    public ThematicSliceKey PrerequisiteKey(Prerequisite p, string currentTrack) =>
+        Slices[p.Slice].Tracks.Contains(currentTrack) ? new ThematicSliceKey(p.Slice, currentTrack) : p.Key;
 
     /// <summary>Примеры среза по возрастанию сложности (brief 7.1).</summary>
     public IEnumerable<Example> ExamplesOf(Slice slice) =>

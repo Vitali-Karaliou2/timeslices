@@ -1,7 +1,11 @@
-// Средство визуализации, не код эпохи: учебная машина среза «Программа в памяти» (описание hw-01, раздел 5).
-// Не EDSAC: свой формат слова (код операции × 1000 + адрес), 128 ячеек, восемь команд.
-// Память загружается из копии code/squares.txt (id="program") или code/cubes.txt (id="cubes"),
-// поэтому машина исполняет ровно показанную программу.
+// Средство визуализации, не код эпохи: учебная машина с аккумулятором по образцу EDSAC
+// (описания hw-02, раздел 5, и hw-04, раздел 5). Не EDSAC: свой формат слова (код операции × 1000 + адрес),
+// 128 ячеек, восемь команд. Память загружается из копии code/squares.txt (id="program") или code/cubes.txt
+// (id="cubes"), поэтому машина исполняет ровно показанную программу.
+// Один файл в двух реализациях (копии сверяет тест): режим — атрибут data-mode у <body> в index.html.
+// "overview" (срез edsac-1949) — короткая строка такта, подсвечены только ячейка по счётчику команд
+// и ячейка, в которую записали; "full" (срез edsac-1949-deep) — подробная строка такта и роли ячеек,
+// а если в index.html есть панель «Два столбца» (id="compare"), — подсветка группы по выполненной команде.
 (function () {
     "use strict";
 
@@ -10,8 +14,10 @@
     var CODES = { Z: 0, A: 1, S: 2, T: 3, U: 4, E: 5, G: 6, O: 7 };
     var LETTERS = ["Z", "A", "S", "T", "U", "E", "G", "O"];
     var COUNTER = 22;                 // ячейка счётчика: N − 1
+    var OVERVIEW = document.body.getAttribute("data-mode") === "overview";
 
     var memory, kinds, acc, pc, ir, ticks, halted, changed, printed, running = false, generation = 0;
+    var executed = -1;                // ячейка, команда из которой выполнена последним тактом
     var cells = [];
 
     // Разбор листинга: «адрес  буква [адрес]  слово  смысл» — команда, «адрес[–адрес]  число  смысл» — данные.
@@ -41,7 +47,7 @@
         var image = parse(selectedTask());
         memory = image.memory;
         kinds = image.kinds;
-        acc = 0; pc = 0; ir = null; ticks = 0; halted = false; changed = -1; printed = [];
+        acc = 0; pc = 0; ir = null; ticks = 0; halted = false; changed = -1; printed = []; executed = -1;
         cells.forEach(function (td) { td.classList.remove("toggled"); });
     }
 
@@ -87,6 +93,7 @@
         changed = -1;
         ir = memory[pc];
         var from = pc;
+        executed = from;
         pc = pc + 1;
         ticks++;
         var op = Math.floor(ir / 1000), addr = ir % 1000;
@@ -101,9 +108,10 @@
             case "E": if (acc >= 0) { pc = addr; text += "Аккумулятор ≥ 0 — счётчик команд := " + addr + "."; } else text += "Аккумулятор < 0 — дальше по порядку."; break;
             case "G": if (acc < 0) { pc = addr; text += "Аккумулятор < 0 — счётчик команд := " + addr + "."; } else text += "Аккумулятор ≥ 0 — дальше по порядку."; break;
             case "O": printed.push(memory[addr]); text += "Печать [" + addr + "] = " + memory[addr] + "."; break;
-            case "Z": return stop(text + "Стоп. В ячейке 2 теперь " + letters(memory[2]) + ".", false);
+            case "Z": return stop(OVERVIEW ? "Такт " + ticks + ": команда из ячейки " + from + " — стоп."
+                : text + "Стоп. В ячейке 2 теперь " + letters(memory[2]) + ".", false);
         }
-        return text;
+        return OVERVIEW ? "Такт " + ticks + ": команда из ячейки " + from + " выполнена." : text;
     }
 
     function stop(text, error) {
@@ -165,11 +173,12 @@
             td.appendChild(w);
             td.appendChild(document.createElement("br"));
             td.appendChild(document.createTextNode(letters(memory[a])));
-            td.classList.toggle("prog", kinds[a] === "prog");
-            td.classList.toggle("data", kinds[a] === "data");
+            td.classList.toggle("prog", !OVERVIEW && kinds[a] === "prog");
+            td.classList.toggle("data", !OVERVIEW && kinds[a] === "data");
             td.classList.toggle("pc", a === pc && !halted);
             td.classList.toggle("changed", a === changed);
         });
+        highlightCompare();
         buttons.step.disabled = running;
         buttons.run.disabled = running;
         document.querySelectorAll("input[name=n], input[name=task]").forEach(function (r) { r.disabled = running; });
@@ -203,15 +212,15 @@
         });
     });
 
-    // Переключатель задачи загружает другую программу в ту же память и отмечает ячейки, которые
-    // по листингу отличаются от другой программы (число повторов то же): другое слово или другая роль.
-    // Ячейка 19 у квадратов пуста, у кубов — Z; слово у обеих 0, но по листингу это разные ячейки.
+    // Переключатель задачи загружает другую программу в ту же память и отмечает ячейки, в которых
+    // другое число (число повторов то же). Ячейка 19 у квадратов пуста, у кубов — Z: у обеих 0,
+    // для машины это одна и та же ячейка — изменились 10 ячеек (решение автора 19.10.2026, hw-04, вопрос 7).
     document.querySelectorAll("input[name=task]").forEach(function (radio) {
         radio.addEventListener("change", function () {
             var other = parse(selectedTask() === "cubes" ? "program" : "cubes");
             load();
             var diff = [];
-            memory.forEach(function (word, a) { if (word !== other.memory[a] || kinds[a] !== other.kinds[a]) diff.push(a); });
+            memory.forEach(function (word, a) { if (word !== other.memory[a]) diff.push(a); });
             diff.forEach(function (a) { cells[a].classList.add("toggled"); });
             status.className = "";
             show("Загружена программа " + (selectedTask() === "cubes" ? "кубов" : "квадратов") + ": изменились " +
@@ -219,7 +228,62 @@
         });
     });
 
+    // Панель «Два столбца» (описание hw-04, раздел 5; спецификация машины с регистрами, раздел 6) — только в полном
+    // режиме. Строится из копии code/compare.txt: «группа | слева | справа | почему справа длиннее»; при прогоне
+    // программы квадратов подсвечиваются группа выполненной команды справа и команды этой группы слева.
+    var compare = { rows: [], byRight: {} };
+
+    function buildCompare() {
+        var code = document.getElementById("columns"), table = document.getElementById("compare-table");
+        if (!code || !table) return;
+        var groups = [];
+        code.textContent.split("\n").forEach(function (line) {
+            var m = /^\s*(\d+) \| (.*?)\s*\| (.*?)\s*\|\s?(.*)$/.exec(line);
+            if (!m) return;
+            var g = Number(m[1]);
+            if (!groups[g]) groups[g] = { left: [], right: [], why: "" };
+            if (m[2]) groups[g].left.push(m[2]);
+            if (m[3]) groups[g].right.push(m[3]);
+            if (m[4]) groups[g].why = m[4];
+        });
+        function column(lines, side, g) {
+            var td = document.createElement("td");
+            td.className = side;
+            lines.forEach(function (text) {
+                var div = document.createElement("div"), a = /^\s*(\d+)  /.exec(text);
+                div.textContent = text.trim();
+                if (a && side === "right") compare.byRight[Number(a[1])] = { group: g, line: div };
+                if (!a) div.className = "note";
+                td.appendChild(div);
+            });
+            return td;
+        }
+        groups.forEach(function (group, g) {
+            if (!group) return;
+            var tr = table.insertRow(), link = document.createElement("td");
+            tr.appendChild(column(group.left, "left", g));
+            link.className = "link";
+            link.textContent = "↔ " + g;
+            tr.appendChild(link);
+            tr.appendChild(column(group.right, "right", g));
+            var why = tr.insertCell();
+            why.className = "why";
+            why.textContent = group.why;
+            compare.rows[g] = tr;
+        });
+    }
+
+    function highlightCompare() {
+        if (!compare.rows.length) return;
+        var squares = selectedTask() === "program", hit = squares ? compare.byRight[executed] : null;
+        compare.rows.forEach(function (tr, g) { if (tr) tr.classList.toggle("current", !!hit && hit.group === g); });
+        Object.keys(compare.byRight).forEach(function (a) { compare.byRight[a].line.classList.toggle("now", !!hit && Number(a) === executed); });
+        document.getElementById("compare-note").textContent = squares ? ""
+            : "Панель сравнивает программы квадратов; для кубов подсветки нет.";
+    }
+
     build();
+    buildCompare();
     load();
     status.textContent = loadedText();
     update();

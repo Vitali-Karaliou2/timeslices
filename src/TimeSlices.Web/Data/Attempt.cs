@@ -17,13 +17,12 @@ public enum SelfRating
     NoMatch,
 }
 
-/// <summary>Попытка сдачи тематического среза: пользователь × срез × трек.</summary>
+/// <summary>Попытка сдачи среза: пользователь × срез (ADR 0014, п. В).</summary>
 public class Attempt
 {
     public int Id { get; set; }
     public string UserId { get; set; } = "";
     public string SliceId { get; set; } = "";
-    public string TrackId { get; set; } = "";
     public DateTime StartedAt { get; set; }
     public DateTime? SubmittedAt { get; set; }
     public AttemptStatus Status { get; set; }

@@ -20,7 +20,7 @@ else
             {
                 <tr>
                     <td>@Model.UserNames.GetValueOrDefault(a.UserId, a.UserId)</td>
-                    <td>@Model.SliceTitle(a.SliceId) <small>(@a.TrackId)</small></td>
+                    <td>@Model.SliceTitle(a.SliceId)</td>
                     <td>@Labels.When(a.SubmittedAt)</td>
                     <td><span class="state submission submission-@a.Status">@Labels.Submission(a.Status)</span></td>
                     <td><a asp-page="/Examiner/Attempt" asp-route-attemptId="@a.Id">Открыть</a></td>

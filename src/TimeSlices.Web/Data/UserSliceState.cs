@@ -1,7 +1,7 @@
 namespace TimeSlices.Web.Data;
 
 /// <summary>
-/// Состояние тематического среза (brief 5.3), сессия 01 — первые четыре.
+/// Состояние среза (brief 5.3), сессия 01 — первые четыре.
 /// Unavailable и Available вычисляются по графу и в БД не хранятся.
 /// </summary>
 public enum SliceState
@@ -12,13 +12,15 @@ public enum SliceState
     Done = 3,
 }
 
-/// <summary>Состояние прохождения: пользователь × тематический срез (срез × трек).</summary>
+/// <summary>
+/// Состояние прохождения: пользователь × срез (ADR 0014, п. В). Срез, пройденный в одном треке,
+/// пройден во всех своих треках; тематический срез — единица навигации, а не учёта.
+/// </summary>
 public class UserSliceState
 {
     public int Id { get; set; }
     public string UserId { get; set; } = "";
     public string SliceId { get; set; } = "";
-    public string TrackId { get; set; } = "";
     public SliceState State { get; set; }
 
     /// <summary>Повторное прохождение без сброса: для последующих срез считается пройденным.</summary>

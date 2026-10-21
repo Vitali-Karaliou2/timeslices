@@ -120,19 +120,21 @@ public class ProcessScheduleTests
         Assert.Equal("5 октября 1992, 14:00:03", ProcessSchedule.FormatAt(new DateTime(1992, 10, 5, 14, 0, 3)));
         // Доли секунды — только у кадров, где они есть (процесс fetch-execute идёт миллисекундами).
         Assert.Equal("6 мая 1949, 10:00:00,005", ProcessSchedule.FormatAt(new DateTime(1949, 5, 6, 10, 0, 0, 5)));
+        // Машина с регистрами идёт микросекундами (hw-03, раздел 6).
+        Assert.Equal("1 января 1960, 10:00:00,000040", ProcessSchedule.FormatAt(new DateTime(1960, 1, 1, 10, 0, 0).AddTicks(400)));
     }
 
     [Fact]
     public void Eniac_SetupAndRun_ShowsElapsedLabels_ForDaysOfPreparation()
     {
         // План сессии 04, ч. 2, п. 6: на процессе ENIAC проигрыватель показывает «прошло …»;
-        // план сессии 04b: перед кадром 6 «кубы» — «прошло 1 сут».
+        // описание hw-01, раздел 6: кадр 6 «кубы» — тот же день, через несколько часов.
         var catalog = ContentLoader.Load(TestContent.RealContentRoot());
         var process = catalog.Examples["squares"].Implementations.Single(i => i.Id == "eniac-1946").Processes.Single().Process!;
 
         var steps = ProcessSchedule.Build(process);
 
-        Assert.Equal(["прошло 7 сут", "прошло 2 сут 8 ч", null, "прошло 15 ч 59 мин", "прошло 1 сут", null], steps.Select(s => s.GapLabel));
+        Assert.Equal(["прошло 7 сут", "прошло 2 сут 8 ч", null, "прошло 15 ч 59 мин", "прошло 4 ч", null], steps.Select(s => s.GapLabel));
     }
 
     [Fact]

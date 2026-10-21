@@ -30,9 +30,10 @@
     <ul>
         @foreach (var p in slice.Prerequisites)
         {
+            var pk = Model.Catalog.PrerequisiteKey(p, Model.Key.TrackId);
             var title = Model.Catalog.Slices[p.Slice].Title;
-            var done = Model.Statuses[p.Key].CountsAsDone;
-            <li>@title (@TrackTitle(p.Track)) — @(done ? "пройден" : "не пройден")</li>
+            var done = Model.Statuses[pk].CountsAsDone;
+            <li>@title (@TrackTitle(pk.TrackId)) — @(done ? "пройден" : "не пройден")</li>
         }
     </ul>
     <p><a asp-page="/Index">К трекам</a></p>
@@ -46,9 +47,13 @@
     <ul>
         @foreach (var p in slice.Prerequisites)
         {
+            var pk = Model.Catalog.PrerequisiteKey(p, Model.Key.TrackId);
             <li>
-                <a asp-page="/Slices/Slice" asp-route-id="@p.Slice" asp-route-track="@p.Track">@Model.Catalog.Slices[p.Slice].Title</a>
-                (@TrackTitle(p.Track))@(string.IsNullOrEmpty(p.Why) ? "" : " — " + p.Why)
+                <a asp-page="/Slices/Slice" asp-route-id="@p.Slice" asp-route-track="@pk.TrackId">@Model.Catalog.Slices[p.Slice].Title</a>
+                (@TrackTitle(pk.TrackId))@if (!string.IsNullOrEmpty(p.Why))
+                {
+                    @(" — ")@DraftMark.BadgeFor(p.Why)@DraftMark.Strip(p.Why)
+                }
             </li>
         }
     </ul>
@@ -63,7 +68,7 @@
 }
 
 <h2 data-section="linkForward">@DraftMark.BadgeFor(headings?.LinkForward)@Heading(headings?.LinkForward, Labels.LinkForwardHeading)</h2>
-@{ var successors = Model.Catalog.SuccessorsOf(Model.Key); }
+@{ var successors = Model.Catalog.FollowingOf(Model.Key); }
 @if (successors.Count > 0)
 {
     <ul>

@@ -28,7 +28,7 @@ public class ReferenceCatalogTests
         Assert.Equal("Что представлял собой Интернет к началу 1990-х", h.Introduces);
         Assert.Equal("Что изменится с появлением HTTP", h.LinkForward);
         Assert.Equal("Что осталось актуальным и в 2020-е", h.Relevance);
-        Assert.Null(_catalog.Slices["cpu-cycle"].Headings);
+        Assert.Null(_catalog.Slices["static-page-1995"].Headings);
     }
 
     [Fact]
@@ -161,7 +161,7 @@ public class ReferenceHttpTests(ShellFactory factory) : IClassFixture<ShellFacto
     [Fact]
     public async Task Learner_NetBeforeWeb_ShowsHeadingsFromSliceAndRefsAfterIntroduces()
     {
-        var client = await factory.SignedInLearnerAsync();
+        var client = await factory.SignedInLearnerAsync(ShellFactory.HardwareStart);
 
         var body = await client.GetStringAsync("/slices/net-before-web-1992");
 
@@ -182,7 +182,7 @@ public class ReferenceHttpTests(ShellFactory factory) : IClassFixture<ShellFacto
     [Fact]
     public async Task Learner_FtpExample_ScheduleAndNoJsListHaveRefs()
     {
-        var client = await factory.SignedInLearnerAsync();
+        var client = await factory.SignedInLearnerAsync(ShellFactory.HardwareStart);
 
         var body = await client.GetStringAsync("/slices/net-before-web-1992/examples/directory?impl=ftp-1992");
 

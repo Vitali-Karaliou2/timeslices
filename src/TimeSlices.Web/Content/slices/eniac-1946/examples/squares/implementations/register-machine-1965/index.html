@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<!-- Средство визуализации, не код эпохи: учебная машина с регистрами (docs/spec/register-machine.md; обобщённая
+     машина около 1965 года, не эмуляция настоящей, CLAUDE.md). Показываемый код — code/squares.txt и code/cubes.txt;
+     их копии ниже (id="squares", id="cubes") должны совпадать с ними дословно (ADR 0006): машина загружает память из этих копий. -->
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>Таблица квадратов: машина с регистрами, около 1965</title>
+<style>
+  body { margin: 0; padding: 8px 12px; font: 14px/1.35 system-ui, sans-serif; background: #f7f9fb; color: #222; }
+  #top { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: flex-end; }
+  .reg { border: 1px solid #99a; background: #fff; padding: 3px 8px; min-width: 4.5em; }
+  .reg.wide { min-width: 11em; }
+  .reg b { display: block; font-size: 11px; font-weight: normal; color: #556; }
+  .reg span { font: 17px monospace; }
+  .reg.changed { background: #ffe9a8; }
+  #controls { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 8px 0 4px; }
+  button, select { font: inherit; padding: 2px 10px; }
+  fieldset { display: inline; border: 1px solid #ccd; padding: 0 8px 2px; margin: 0; }
+  #status { min-height: 2.7em; margin: 4px 0 6px; }
+  #status.error { color: #a00; }
+  #memory { border-collapse: collapse; font: 11px monospace; }
+  #memory td { border: 1px solid #ddd; padding: 1px 3px; width: 7.6em; vertical-align: top; background: #fff; white-space: nowrap; }
+  #memory td i { font-style: normal; color: #998; font-size: 10px; }
+  #memory td .w { color: #555; float: right; }
+  #memory td.prog { background: #eef3ff; }
+  #memory td.data { background: #f2fbef; }
+  #memory td.pc { outline: 2px solid #2650c9; outline-offset: -2px; }
+  #memory td.changed { background: #ffe9a8; }
+  #memory td.toggled { outline: 2px dashed #c05a00; outline-offset: -2px; }
+  #legend { font-size: 12px; color: #555; margin: 4px 0; }
+  #legend span { padding: 0 4px; border: 1px solid #ddd; }
+  #example-switches { display: contents; }
+  #example-switches[hidden] { display: none; }
+  #own { margin: 6px 0; }
+  #own textarea { display: block; width: 100%; max-width: 46em; box-sizing: border-box; font: 13px monospace; }
+  #own .row { display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: center; margin: 4px 0; }
+  #own .note { font-size: 12px; color: #555; margin: 2px 0; }
+  #errors { color: #a00; margin: 4px 0; }
+  #n-own { width: 5em; font: inherit; }
+</style>
+</head>
+<body>
+<div id="top">
+  <div class="reg"><b>A</b><span id="reg-A">0</span></div>
+  <div class="reg"><b>B</b><span id="reg-B">0</span></div>
+  <div class="reg"><b>C</b><span id="reg-C">0</span></div>
+  <div class="reg"><b>X — индекс</b><span id="reg-X">0</span></div>
+  <div class="reg"><b>PC — счётчик команд</b><span id="reg-PC">0</span></div>
+  <div class="reg wide"><b>IR — регистр команды</b><span id="reg-IR">—</span></div>
+  <div class="reg"><b>LT — «меньше»</b><span id="reg-LT">нет</span></div>
+  <div class="reg"><b>Тактов</b><span id="ticks">0</span></div>
+  <div class="reg"><b>Время при ~10 мкс на команду</b><span id="time">0 мкс</span></div>
+</div>
+<div id="controls">
+  <button type="button" id="step">Такт</button>
+  <button type="button" id="run">Прогон</button>
+  <button type="button" id="reset">Сброс</button>
+  <label>Скорость показа
+    <select id="speed">
+      <option value="5">5 тактов/с</option>
+      <option value="50">50 тактов/с</option>
+      <option value="500" selected>500 тактов/с</option>
+      <option value="5000">5000 тактов/с</option>
+    </select></label>
+  <fieldset><legend>Режим</legend>
+    <label><input type="radio" name="mode" value="example" checked> пример</label>
+    <label><input type="radio" name="mode" value="own"> своя программа</label>
+  </fieldset>
+  <div id="example-switches">
+  <fieldset><legend>Задача</legend>
+    <label><input type="radio" name="task" value="squares" checked> квадраты</label>
+    <label><input type="radio" name="task" value="cubes"> кубы</label>
+  </fieldset>
+  <fieldset><legend>Таблица (ячейка 20)</legend>
+    <label><input type="radio" name="n" value="10" checked> 10</label>
+    <label><input type="radio" name="n" value="100"> 100</label>
+  </fieldset>
+  </div>
+</div>
+<section id="own" hidden aria-label="Своя программа">
+  <label for="source">Программа: строка на ячейку — <code>[адрес:] МНЕМОНИКА операнды</code>, данные — <code>адрес: число</code>,
+    комментарий — после <code>;</code>. Команды: HALT, LOAD, LOADI, STORE, STOREX, ADD, ADDI, SUB, CMP, BLT.</label>
+  <textarea id="source" rows="14" spellcheck="false"></textarea>
+  <p class="note">Текст программы не сохраняется между заходами: сборка в рамке не имеет доступа к хранилищу браузера.
+    Скопируйте программу, если она понадобится.</p>
+  <div class="row">
+    <button type="button" id="write">Записать в память</button>
+    <button type="button" id="restore">Вернуть пример</button>
+    <label>N в ячейке 20 <input type="number" id="n-own" min="1" max="100" value="10"></label>
+  </div>
+  <ul id="errors" hidden aria-live="polite"></ul>
+</section>
+<p id="status" aria-live="polite"></p>
+<p id="legend">В ячейке: <i>адрес</i>, само слово (число) и, если число читается как команда, её мнемоника.
+  <span style="background:#eef3ff">команды</span> <span style="background:#f2fbef">N</span>
+  <span style="outline:2px solid #2650c9">счётчик команд</span> <span style="background:#ffe9a8">записано или изменено последним тактом</span>
+  <span style="outline:2px dashed #c05a00">изменено переключателем</span></p>
+<table id="memory" aria-label="Память: 128 ячеек"></table>
+<script type="text/plain" id="squares" data-code="code/squares.txt">Квадраты: (i + 1)² = i² + (2i + 1)
+
+Адрес  Команда         Слово  Смысл
+    0  LOADI  A, 0     20000  A — текущий квадрат, i² = 0
+    1  LOADI  B, 1     21001  B — разность 2i + 1
+    2  LOADI  X, 0     23000  X — индекс i
+    3  STOREX A, 28    40028  [28 + i] := i²            ← начало цикла
+    4  ADD    A, B     50001  квадрат += разность
+    5  ADDI   B, 2     61002  разность += 2
+    6  ADDI   X, 1     63001  i += 1
+    7  CMP    X, 20    83020  i < N ?
+    8  BLT    3        90003  да — следующая строка
+    9  HALT                0  стоп
+</script>
+<script type="text/plain" id="cubes" data-code="code/cubes.txt">Кубы: (i + 1)³ = i³ + d₁, d₁ += d₂, d₂ += 6 (d₁ = 3i² + 3i + 1, d₂ = 6i + 6)
+
+Адрес  Команда         Слово  Смысл
+    0  LOADI  A, 0     20000  A — текущий куб
+    1  LOADI  B, 1     21001  B — первая разность d₁
+    2  LOADI  C, 6     22006  C — вторая разность d₂
+    3  LOADI  X, 0     23000  X — индекс i
+    4  STOREX A, 28    40028  [28 + i] := i³            ← начало цикла
+    5  ADD    A, B     50001  куб += d₁
+    6  ADD    B, C     51002  d₁ += d₂
+    7  ADDI   C, 6     62006  d₂ += 6
+    8  ADDI   X, 1     63001  i += 1
+    9  CMP    X, 20    83020  i < N ?
+   10  BLT    4        90004  да — следующая строка
+   11  HALT                0  стоп
+</script>
+<script src="assembler.js"></script>
+<script src="machine.js"></script>
+</body>
+</html>

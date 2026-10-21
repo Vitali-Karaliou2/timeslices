@@ -301,11 +301,6 @@ namespace TimeSlices.Web.Data.Migrations
                     b.Property<DateTime?>("SubmittedAt")
                         .HasColumnType("TEXT");
 
-                    b.Property<string>("TrackId")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("TEXT");
-
                     b.Property<string>("UserId")
                         .IsRequired()
                         .HasColumnType("TEXT");
@@ -316,11 +311,11 @@ namespace TimeSlices.Web.Data.Migrations
 
                     b.HasIndex("Status", "SubmittedAt");
 
-                    b.HasIndex(new[] { "UserId", "SliceId", "TrackId" }, "IX_Attempts_Open")
+                    b.HasIndex(new[] { "UserId", "SliceId" }, "IX_Attempts_Open")
                         .IsUnique()
                         .HasFilter("\"Status\" IN ('InProgress', 'Submitted')");
 
-                    b.HasIndex(new[] { "UserId", "SliceId", "TrackId" }, "IX_Attempts_UserId_SliceId_TrackId");
+                    b.HasIndex(new[] { "UserId", "SliceId" }, "IX_Attempts_UserId_SliceId");
 
                     b.ToTable("Attempts");
                 });
@@ -344,11 +339,6 @@ namespace TimeSlices.Web.Data.Migrations
                         .HasMaxLength(20)
                         .HasColumnType("TEXT");
 
-                    b.Property<string>("TrackId")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("TEXT");
-
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("TEXT");
 
@@ -358,7 +348,7 @@ namespace TimeSlices.Web.Data.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("UserId", "SliceId", "TrackId")
+                    b.HasIndex("UserId", "SliceId")
                         .IsUnique();
 
                     b.ToTable("UserSliceStates");

@@ -12,13 +12,13 @@ public class IndexModel(ContentCatalog catalog, SliceProgressService progress, S
     public ContentCatalog Catalog => catalog;
     public IReadOnlyDictionary<ThematicSliceKey, SliceStatus> Statuses { get; private set; } = new Dictionary<ThematicSliceKey, SliceStatus>();
 
-    /// <summary>Последние попытки сдачи по тематическим срезам (ADR 0011, п. 4).</summary>
-    public IReadOnlyDictionary<ThematicSliceKey, Attempt> Attempts { get; private set; } = new Dictionary<ThematicSliceKey, Attempt>();
+    /// <summary>Последние попытки сдачи по срезам (ADR 0011, п. 4; ADR 0014, п. В).</summary>
+    public IReadOnlyDictionary<string, Attempt> Attempts { get; private set; } = new Dictionary<string, Attempt>();
 
     public async Task OnGetAsync()
     {
         var userId = users.GetUserId(User)!;
         Statuses = await progress.GetStatusesAsync(userId);
-        Attempts = await selfCheck.LatestByKeyAsync(userId);
+        Attempts = await selfCheck.LatestBySliceAsync(userId);
     }
 }
