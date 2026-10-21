@@ -24,7 +24,7 @@ public class RealContentTests
     [InlineData("net-before-web-1992", "net-01_net-before-web-1992.md")]
     [InlineData("static-page-1995", "fe-01_static-page-1995.md")]
     [InlineData("forms-cgi-1995", "fe-02_forms-cgi-1995.md")]
-    [InlineData("cpu-cycle", "hw-01_cpu-cycle.md")]
+    [InlineData("cpu-cycle", "superseded/hw-01_cpu-cycle.md")] // до сессии 08: срез ещё в коллекции, описание заменено (ADR 0014)
     public void RelevanceNote_IsVerbatimFromSection4OfDescription(string sliceId, string description)
     {
         // ADR 0010: текст — дословно из раздела 4 описания («Пояснение актуальности»).
