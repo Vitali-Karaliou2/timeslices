@@ -176,7 +176,7 @@ public class RealContentTests
         // Имитация в iframe не может прочесть code/*.txt (sandbox без allow-same-origin), поэтому
         // держит его копию в <script type="text/plain" data-code="...">; копия не должна разойтись с показом (ADR 0006).
         var emulated = _catalog.Examples.Values.SelectMany(e => e.Implementations).Where(i => i.CodeMode == "emulated").ToList();
-        Assert.Equal(["eniac-1946", "ftp-1992", "gopher-1992", "stored-program-1949", "stored-program-1949-overview"], emulated.Select(i => i.Id).Order(StringComparer.Ordinal));
+        Assert.Equal(["eniac-1946", "ftp-1992", "gopher-1992", "register-machine-1960", "stored-program-1949", "stored-program-1949-overview"], emulated.Select(i => i.Id).Order(StringComparer.Ordinal));
         foreach (var impl in emulated)
         {
             var html = File.ReadAllText(Path.Combine(impl.Directory, impl.Entry));
@@ -219,9 +219,10 @@ public class RealContentTests
         Assert.Equal(
             [("eniac-1946", "eniac-1946", "emulated", "setup-and-run"),
              ("stored-program-1949-overview", "edsac-1949", "emulated", "fetch-execute-overview"),
+             ("register-machine-1960", "register-machine-1960", "emulated", "fetch-execute"),
              ("stored-program-1949", "edsac-1949-deep", "emulated", "fetch-execute")],
             squares.Implementations.Select(i => (i.Id, i.Slice, i.CodeMode, i.Processes.Single().Id)));
-        foreach (var id in new[] { "eniac-1946", "edsac-1949", "edsac-1949-deep" })
+        foreach (var id in new[] { "eniac-1946", "edsac-1949", "register-machine-1960", "edsac-1949-deep" })
             Assert.Equal(["squares"], _catalog.Slices[id].Examples);
         Assert.False(_catalog.Slices.ContainsKey("cpu-cycle"));
     }

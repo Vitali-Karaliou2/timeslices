@@ -120,6 +120,8 @@ public class ProcessScheduleTests
         Assert.Equal("5 октября 1992, 14:00:03", ProcessSchedule.FormatAt(new DateTime(1992, 10, 5, 14, 0, 3)));
         // Доли секунды — только у кадров, где они есть (процесс fetch-execute идёт миллисекундами).
         Assert.Equal("6 мая 1949, 10:00:00,005", ProcessSchedule.FormatAt(new DateTime(1949, 5, 6, 10, 0, 0, 5)));
+        // Машина с регистрами идёт микросекундами (hw-03, раздел 6).
+        Assert.Equal("1 января 1960, 10:00:00,000040", ProcessSchedule.FormatAt(new DateTime(1960, 1, 1, 10, 0, 0).AddTicks(400)));
     }
 
     [Fact]
