@@ -20,24 +20,22 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
 
         builder.Entity<UserSliceState>(e =>
         {
-            e.HasIndex(s => new { s.UserId, s.SliceId, s.TrackId }).IsUnique();
+            e.HasIndex(s => new { s.UserId, s.SliceId }).IsUnique();
             e.Property(s => s.UserId).IsRequired();
             e.Property(s => s.SliceId).IsRequired().HasMaxLength(100);
-            e.Property(s => s.TrackId).IsRequired().HasMaxLength(100);
             e.Property(s => s.State).HasConversion<string>().HasMaxLength(20);
             e.HasOne<ApplicationUser>().WithMany().HasForeignKey(s => s.UserId).OnDelete(DeleteBehavior.Cascade);
         });
 
         builder.Entity<Attempt>(e =>
         {
-            e.HasIndex(a => new { a.UserId, a.SliceId, a.TrackId }, "IX_Attempts_UserId_SliceId_TrackId");
-            // Не больше одной незавершённой попытки на тематический срез: двойное «Начать» не создаёт вторую.
-            e.HasIndex(a => new { a.UserId, a.SliceId, a.TrackId }, "IX_Attempts_Open").IsUnique()
+            e.HasIndex(a => new { a.UserId, a.SliceId }, "IX_Attempts_UserId_SliceId");
+            // Не больше одной незавершённой попытки на срез: двойное «Начать» не создаёт вторую.
+            e.HasIndex(a => new { a.UserId, a.SliceId }, "IX_Attempts_Open").IsUnique()
                 .HasFilter("\"Status\" IN ('InProgress', 'Submitted')");
             e.HasIndex(a => new { a.Status, a.SubmittedAt });
             e.Property(a => a.UserId).IsRequired();
             e.Property(a => a.SliceId).IsRequired().HasMaxLength(100);
-            e.Property(a => a.TrackId).IsRequired().HasMaxLength(100);
             e.Property(a => a.Status).HasConversion<string>().HasMaxLength(20);
             e.Property(a => a.ExaminerComment).HasMaxLength(4000);
             e.HasOne<ApplicationUser>().WithMany().HasForeignKey(a => a.UserId).OnDelete(DeleteBehavior.Cascade);

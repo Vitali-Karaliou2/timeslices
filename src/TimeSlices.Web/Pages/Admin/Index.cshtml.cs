@@ -8,18 +8,18 @@ using TimeSlices.Web.Progress;
 
 namespace TimeSlices.Web.Pages.Admin;
 
-/// <summary>Список пользователей, их ролей и состояний; администратор назначает роль (ADR 0011, п. 6).</summary>
+/// <summary>Список пользователей, их ролей и состояний срезов (учёт по срезу, ADR 0014, п. В); администратор назначает роль (ADR 0011, п. 6).</summary>
 public class IndexModel(ContentCatalog catalog, SliceProgressService progress, UserManager<ApplicationUser> users) : PageModel
 {
     public ContentCatalog Catalog => catalog;
-    public List<(ApplicationUser User, IList<string> Roles, IReadOnlyDictionary<ThematicSliceKey, SliceStatus> Statuses)> Rows { get; } = [];
+    public List<(ApplicationUser User, IList<string> Roles, IReadOnlyDictionary<string, SliceStatus> Statuses)> Rows { get; } = [];
 
     public string CurrentUserId => users.GetUserId(User)!;
 
     public async Task OnGetAsync()
     {
         foreach (var user in await users.Users.OrderBy(u => u.UserName).ToListAsync())
-            Rows.Add((user, await users.GetRolesAsync(user), await progress.GetStatusesAsync(user.Id)));
+            Rows.Add((user, await users.GetRolesAsync(user), await progress.GetSliceStatusesAsync(user.Id)));
     }
 
     /// <summary>

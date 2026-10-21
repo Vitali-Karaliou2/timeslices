@@ -10,9 +10,9 @@
         <tr>
             <th>Пользователь</th>
             <th>Роли</th>
-            @foreach (var key in Model.Catalog.ThematicSlices)
+            @foreach (var id in Model.Catalog.SliceOrder)
             {
-                <th>@key.SliceId<br /><small>@key.TrackId</small></th>
+                <th>@id</th>
             }
         </tr>
     </thead>
@@ -41,9 +41,9 @@
                         </form>
                     }
                 </td>
-                @foreach (var key in Model.Catalog.ThematicSlices)
+                @foreach (var id in Model.Catalog.SliceOrder)
                 {
-                    <td><span class="state state-@statuses[key].State">@Labels.State(statuses[key])</span></td>
+                    <td><span class="state state-@statuses[id].State">@Labels.State(statuses[id])</span></td>
                 }
             </tr>
         }

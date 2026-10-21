@@ -52,20 +52,20 @@ public class SelfCheckService(
         && (await progress.GetStatusAsync(userId, key)).State is SliceState.InProgress or SliceState.Done;
 
     /// <summary>
-    /// Последняя попытка по тематическому срезу (с ответами) или null. Без отслеживания:
+    /// Последняя попытка по срезу (с ответами) или null; трек ключа не важен — попытка одна на срез (ADR 0014, п. В). Без отслеживания:
     /// шаги пишутся условными UPDATE, и отслеживаемая копия устарела бы.
     /// </summary>
     public Task<Attempt?> LatestAsync(string userId, ThematicSliceKey key) =>
         db.Attempts.AsNoTracking().Include(a => a.Answers)
-            .Where(a => a.UserId == userId && a.SliceId == key.SliceId && a.TrackId == key.TrackId)
+            .Where(a => a.UserId == userId && a.SliceId == key.SliceId)
             .OrderByDescending(a => a.Id)
             .FirstOrDefaultAsync();
 
-    /// <summary>Последние попытки пользователя по всем тематическим срезам (для главной).</summary>
-    public async Task<IReadOnlyDictionary<ThematicSliceKey, Attempt>> LatestByKeyAsync(string userId)
+    /// <summary>Последние попытки пользователя по всем срезам (для главной), по id среза.</summary>
+    public async Task<IReadOnlyDictionary<string, Attempt>> LatestBySliceAsync(string userId)
     {
         var attempts = await db.Attempts.AsNoTracking().Where(a => a.UserId == userId).ToListAsync();
-        return attempts.GroupBy(a => new ThematicSliceKey(a.SliceId, a.TrackId))
+        return attempts.GroupBy(a => a.SliceId)
             .ToDictionary(g => g.Key, g => g.MaxBy(a => a.Id)!);
     }
 
@@ -92,7 +92,7 @@ public class SelfCheckService(
             return SelfCheckOutcome.Conflict;
         db.Attempts.Add(new Attempt
         {
-            UserId = userId, SliceId = key.SliceId, TrackId = key.TrackId,
+            UserId = userId, SliceId = key.SliceId,
             StartedAt = Now, Status = AttemptStatus.InProgress,
         });
         return await SaveAsync();

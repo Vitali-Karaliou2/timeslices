@@ -30,7 +30,7 @@
                     }
                     <span>(@slice.YearFrom–@slice.YearTo)</span>
                     <span class="state state-@status.State">@Labels.State(status)</span>
-                    @if (Model.Attempts.TryGetValue(key, out var attempt))
+                    @if (Model.Attempts.TryGetValue(key.SliceId, out var attempt))
                     {
                         <span class="state submission submission-@attempt.Status">@Labels.Submission(attempt.Status)</span>
                     }

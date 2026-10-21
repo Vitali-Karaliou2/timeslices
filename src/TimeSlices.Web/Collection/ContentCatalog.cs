@@ -8,6 +8,7 @@ public sealed class ContentCatalog
 {
     private readonly Dictionary<ThematicSliceKey, List<ThematicSliceKey>> _prerequisites;
     private readonly Dictionary<ThematicSliceKey, List<ThematicSliceKey>> _successors;
+    private readonly Dictionary<string, List<string>> _sliceSuccessors;
     private readonly List<(string Directory, Example Example, Implementation Implementation)> _implementationDirectories;
     private readonly IReadOnlyDictionary<string, IReadOnlyList<Question>> _questions;
     private readonly Dictionary<string, List<ReferenceMention>> _mentions;
@@ -44,6 +45,13 @@ public sealed class ContentCatalog
         foreach (var (key, prereqs) in _prerequisites)
             foreach (var p in prereqs)
                 _successors[p].Add(key);
+
+        // Граф срезов без треков: единица учёта прохождения — срез (ADR 0014, п. В).
+        SliceOrder = sliceOrder;
+        _sliceSuccessors = sliceOrder.ToDictionary(id => id, _ => new List<string>());
+        foreach (var id in sliceOrder)
+            foreach (var p in PrerequisiteSlicesOf(id))
+                _sliceSuccessors[p].Add(id);
 
         Articles = articles ?? new Dictionary<string, Article>(StringComparer.Ordinal);
         _mentions = BuildMentions(slices, examples, Articles);
@@ -145,6 +153,31 @@ public sealed class ContentCatalog
             var k = stack.Pop();
             if (seen.Add(k))
                 foreach (var s in _successors[k])
+                    stack.Push(s);
+        }
+        return seen;
+    }
+
+    /// <summary>Все срезы в топологическом порядке: предшественники раньше последующих.</summary>
+    public IReadOnlyList<string> SliceOrder { get; }
+
+    /// <summary>Срезы-предшественники без учёта трека ребра: трек в prerequisites — только подпись (ADR 0014, п. В.2).</summary>
+    public IReadOnlyList<string> PrerequisiteSlicesOf(string sliceId) =>
+        Slices[sliceId].Prerequisites.Select(p => p.Slice).Distinct().ToList();
+
+    /// <summary>Непосредственные срезы-последующие.</summary>
+    public IReadOnlyList<string> SuccessorSlicesOf(string sliceId) => _sliceSuccessors[sliceId];
+
+    /// <summary>Все последующие (транзитивно) срезы.</summary>
+    public IReadOnlyCollection<string> AllSuccessorSlicesOf(string sliceId)
+    {
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+        var stack = new Stack<string>(_sliceSuccessors[sliceId]);
+        while (stack.Count > 0)
+        {
+            var id = stack.Pop();
+            if (seen.Add(id))
+                foreach (var s in _sliceSuccessors[id])
                     stack.Push(s);
         }
         return seen;

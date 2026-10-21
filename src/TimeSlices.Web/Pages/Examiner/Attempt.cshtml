@@ -7,7 +7,7 @@
 }
 
 <p><a asp-page="/Examiner/Index">← Все сдачи</a></p>
-<h1>@Model.SliceTitle <small>(@a.TrackId)</small></h1>
+<h1>@Model.SliceTitle</h1>
 <dl class="signs">
     <dt>Обучаемый</dt><dd>@Model.LearnerName</dd>
     <dt>Начата</dt><dd>@Labels.When(a.StartedAt)</dd>
