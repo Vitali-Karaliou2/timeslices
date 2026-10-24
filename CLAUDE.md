@@ -10,18 +10,25 @@
 
 ## Стадия
 0→1. Один человек плюс модель (к работе могут подключаться ещё два разработчика
-со своими аккаунтами — тот же репозиторий, свои ветки). Первый набор — семь срезов
-(docs/decisions/0003-first-set-composition.md; он главнее раздела 10.2 brief). Описания срезов —
+со своими аккаунтами — тот же репозиторий, свои ветки). Первый набор — десять срезов
+(docs/decisions/0003-first-set-composition.md и 0014-hardware-start-and-progress-by-slice.md; они главнее раздела 10.2 brief):
+`eniac-1946`, `edsac-1949`, `register-machine-1965`, `edsac-1949-deep`, `punch-cards-1972`, `net-before-web-1992`,
+`static-page-1995`, `forms-cgi-1995`, `ajax-2005`, `rup-vs-xp-2001`. Продвинутый срез ENIAC (`eniac-1946-deep`) — на 1→n.
+Логический порядок срезов задают рёбра графа, а не годы, и он может быть обратен хронологическому (ADR 0014). Описания срезов —
 `docs/slices/`, формат — `docs/spec/slice-description-format.md`. Оболочка тонкая; примеры — изолированные статические сборки.
 
 ## Стек и команды
-- .NET LTS, ASP.NET Core (Razor Pages), EF Core + SQLite (файл `app.db` в корне, в .gitignore).
+- .NET LTS, ASP.NET Core (Razor Pages), EF Core + SQLite: файл `app.db` создаётся миграциями при старте
+  в рабочей папке приложения — при `dotnet run --project src/TimeSlices.Web` это `src/TimeSlices.Web/app.db`; в .gitignore.
+  В нём хэши паролей: не читай его (запрещено в `.claude/settings.json`); для просмотра автором есть `scripts/db_show.py` (только чтение).
 - ASP.NET Core Identity, роли: Learner, Examiner, Admin. Dev-пользователи сидируются при старте.
 - Сборка: `dotnet build TimeSlices.sln`
 - Тесты: `dotnet test TimeSlices.sln`
 - Запуск: `dotnet run --project src/TimeSlices.Web` (http://localhost:5000)
 - Миграции: `dotnet ef migrations add <Name> --project src/TimeSlices.Web`
-- Проверка манифеста примера: `python3 scripts/validate_manifest.py <path/to/manifest.json>` (на Windows — `python`)
+- Проверка манифеста примера: `python3 scripts/validate_manifest.py <path/to/manifest.json>` (на Windows — `python`);
+  всего содержания — `python3 scripts/validate_all.py`. Тесты валидатора требуют Python 3 в PATH.
+- На Windows у автора: `bat\run-tests.bat`, `bat\run-app.bat`, `bat\db-show.bat` — те же команды двойным щелчком.
 - В облачной сессии .NET ставится хуком SessionStart (scripts/install_dotnet.sh); если `dotnet`
   не найден — выполни `bash scripts/install_dotnet.sh` и добавь `$HOME/.dotnet` в PATH.
 

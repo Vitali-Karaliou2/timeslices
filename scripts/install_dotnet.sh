@@ -39,8 +39,19 @@ if ! dotnet tool list -g 2>/dev/null | grep -q dotnet-ef; then
   dotnet tool install -g dotnet-ef >/dev/null 2>&1 || true
 fi
 
-# Делаем PATH видимым для команд, которые будет запускать Claude в этой сессии.
-# (Файл профиля читается bash-инструментом при старте каждой команды.)
+# Документированный способ передать переменные командам сессии (SessionStart): Claude Code выполняет
+# содержимое CLAUDE_ENV_FILE перед каждой командой Bash. Путь к dotnet-ef — $HOME/.dotnet/tools и при установке
+# из пакета Ubuntu. DOTNET_ROOT — настоящая папка dotnet: при установке из пакета это /usr/lib/dotnet, а не
+# $HOME/.dotnet, и с неверным DOTNET_ROOT глобальные инструменты (dotnet-ef) не находят среду выполнения.
+if [ -n "$CLAUDE_ENV_FILE" ]; then
+  REAL_DOTNET_ROOT="$(dirname "$(readlink -f "$(command -v dotnet)")" 2>/dev/null)"
+  [ -d "$REAL_DOTNET_ROOT" ] || REAL_DOTNET_ROOT="$HOME/.dotnet"
+  echo "export DOTNET_ROOT=\"$REAL_DOTNET_ROOT\"" >> "$CLAUDE_ENV_FILE"
+  echo 'export PATH="$HOME/.dotnet:$HOME/.dotnet/tools:$PATH"' >> "$CLAUDE_ENV_FILE"
+  echo 'export DOTNET_CLI_TELEMETRY_OPTOUT=1' >> "$CLAUDE_ENV_FILE"
+fi
+
+# Запасной путь: файл профиля, который bash-инструмент читает при старте каждой команды.
 grep -q 'DOTNET_ROOT' "$HOME/.bashrc" 2>/dev/null || {
   echo 'export DOTNET_ROOT="$HOME/.dotnet"' >> "$HOME/.bashrc"
   echo 'export PATH="$DOTNET_ROOT:$DOTNET_ROOT/tools:$PATH"' >> "$HOME/.bashrc"
